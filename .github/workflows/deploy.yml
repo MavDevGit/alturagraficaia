@@ -28,6 +28,7 @@ jobs:
       contents: read
       id-token: write
     env:
+      APP_ENV: testing
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       GCP_REGION: us-central1
       MEDIA_BUCKET: ${{ vars.MEDIA_BUCKET }}
