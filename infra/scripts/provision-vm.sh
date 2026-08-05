@@ -46,6 +46,5 @@ systemctl daemon-reload
 systemctl enable php8.3-fpm altura-scheduler.timer
 systemctl restart php8.3-fpm
 systemctl reload caddy
-systemctl start altura-scheduler.timer
 
 echo "Runtime compartido preparado. Configure secretos, base de datos y primer release antes de activar worker y backups."
