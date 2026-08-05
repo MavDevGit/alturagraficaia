@@ -17,7 +17,8 @@ if ! id altura >/dev/null 2>&1; then
   useradd --system --home-dir /var/www/alturagrafica/shared --shell /usr/sbin/nologin altura
 fi
 
-install -d -o altura -g altura -m 0750 /var/www/alturagrafica/releases /var/www/alturagrafica/shared
+install -d -o altura -g caddy -m 0750 /var/www/alturagrafica/releases
+install -d -o altura -g altura -m 0750 /var/www/alturagrafica/shared
 install -d -o root -g altura -m 0750 /etc/altura
 install -d -o caddy -g caddy -m 0750 /etc/caddy/conf.d
 

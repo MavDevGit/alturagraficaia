@@ -31,7 +31,7 @@ if [[ ! -f "$SHARED_ROOT/.env" ]]; then
 fi
 echo "$EXPECTED_SHA  $ARCHIVE" | sha256sum --check --status || { echo "Checksum inválido." >&2; exit 1; }
 
-install -d -o altura -g altura -m 0750 "$TARGET"
+install -d -o altura -g caddy -m 0750 "$TARGET"
 tar -xzf "$ARCHIVE" -C "$TARGET"
 if [[ ! -f "$TARGET/apps/api/artisan" || ! -f "$TARGET/apps/web/dist/index.html" || ! -f "$TARGET/apps/api/vendor/autoload.php" ]]; then
   echo "El paquete no contiene los artefactos de producción." >&2
@@ -47,7 +47,7 @@ install -d -o altura -g altura -m 0750 \
 rm -rf -- "$TARGET/apps/api/storage"
 ln -s "$SHARED_ROOT/storage" "$TARGET/apps/api/storage"
 ln -s "$SHARED_ROOT/.env" "$TARGET/apps/api/.env"
-chown -R altura:altura "$TARGET"
+chown -R altura:caddy "$TARGET"
 chmod 0640 "$SHARED_ROOT/.env"
 
 cd "$TARGET/apps/api"
