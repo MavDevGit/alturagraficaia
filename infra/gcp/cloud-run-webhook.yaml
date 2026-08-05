@@ -1,0 +1,43 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: altura-image-webhook
+  labels:
+    cloud.googleapis.com/location: us-central1
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/cpu-throttling: "true"
+    spec:
+      containerConcurrency: 10
+      timeoutSeconds: 30
+      serviceAccountName: altura-image-webhook@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: us-central1-docker.pkg.dev/PROJECT_ID/altura/image-service:IMAGE_TAG
+          ports: [{ containerPort: 8080 }]
+          resources:
+            limits: { cpu: "1", memory: 512Mi }
+          startupProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: SERVICE_MODE, value: webhook }
+            - { name: GCP_PROJECT_ID, value: PROJECT_ID }
+            - { name: GCS_BUCKET, value: BUCKET_NAME }
+            - { name: TASKS_LOCATION, value: us-central1 }
+            - { name: TASKS_QUEUE, value: altura-image-finalize }
+            - { name: FINALIZE_URL, value: "WORKER_URL/internal/finalize" }
+            - { name: FINALIZE_AUDIENCE, value: "WORKER_URL" }
+            - {
+                name: TASKS_INVOKER_SERVICE_ACCOUNT,
+                value: "altura-tasks-invoker@PROJECT_ID.iam.gserviceaccount.com",
+              }
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                { secretKeyRef: { key: latest, name: image-internal-key } }

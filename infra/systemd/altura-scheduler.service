@@ -1,0 +1,9 @@
+[Unit]
+Description=Altura Grafica Laravel Scheduler
+
+[Service]
+Type=oneshot
+User=altura
+Group=altura
+WorkingDirectory=/var/www/alturagrafica/current/apps/api
+ExecStart=/usr/bin/php8.3 artisan schedule:run

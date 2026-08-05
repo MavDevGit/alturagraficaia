@@ -1,0 +1,12 @@
+{
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": { "age": 30, "matchesPrefix": ["postgresql/"] }
+    },
+    {
+      "action": { "type": "AbortIncompleteMultipartUpload" },
+      "condition": { "age": 1 }
+    }
+  ]
+}

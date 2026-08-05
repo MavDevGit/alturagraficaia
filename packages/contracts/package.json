@@ -1,0 +1,8 @@
+{
+  "name": "@alturagrafica/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "generate": "openapi-typescript openapi.yaml -o ../../apps/web/src/api/schema.d.ts"
+  }
+}

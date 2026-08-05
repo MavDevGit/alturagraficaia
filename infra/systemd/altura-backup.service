@@ -1,0 +1,12 @@
+[Unit]
+Description=Altura Grafica encrypted PostgreSQL backup
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/altura/backup.env
+ExecStart=/usr/local/sbin/altura-backup-postgres
+PrivateTmp=true
+NoNewPrivileges=true

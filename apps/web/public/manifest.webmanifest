@@ -1,0 +1,23 @@
+{
+  "name": "Altura Gráfica IA",
+  "short_name": "Altura IA",
+  "description": "Taller profesional para escalar y transformar imágenes con IA.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#0a0e17",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

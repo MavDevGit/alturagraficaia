@@ -1,0 +1,17 @@
+[Unit]
+Description=Altura Grafica Laravel Queue Worker
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=altura
+Group=altura
+WorkingDirectory=/var/www/alturagrafica/current/apps/api
+ExecStart=/usr/bin/php8.3 artisan queue:work --sleep=2 --tries=2 --timeout=950 --max-jobs=250
+Restart=always
+RestartSec=5
+MemoryMax=160M
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

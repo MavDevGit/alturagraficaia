@@ -1,0 +1,52 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: altura-image-worker
+  labels:
+    cloud.googleapis.com/location: us-central1
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "1"
+        run.googleapis.com/cpu-throttling: "true"
+    spec:
+      containerConcurrency: 1
+      timeoutSeconds: 900
+      serviceAccountName: altura-image-worker@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: us-central1-docker.pkg.dev/PROJECT_ID/altura/image-service:IMAGE_TAG
+          ports: [{ containerPort: 8080 }]
+          resources:
+            limits: { cpu: "2", memory: 2Gi }
+          startupProbe:
+            httpGet: { path: /health, port: 8080 }
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 12
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: SERVICE_MODE, value: worker }
+            - { name: PROCESSING_DRIVER, value: fal }
+            - { name: GCP_PROJECT_ID, value: PROJECT_ID }
+            - { name: GCS_BUCKET, value: BUCKET_NAME }
+            - { name: MAX_REMOTE_BYTES, value: "536870912" }
+            - { name: TILE_UPLOAD_CONCURRENCY, value: "6" }
+            - { name: TILE_WEBP_QUALITY, value: "88" }
+            - {
+                name: FAL_WEBHOOK_URL,
+                value: "https://images.example.com/webhooks/fal",
+              }
+            - {
+                name: CALLBACK_URL,
+                value: "https://app.example.com/api/internal/image-callback",
+              }
+            - name: FAL_KEY
+              valueFrom: { secretKeyRef: { key: latest, name: fal-key } }
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                { secretKeyRef: { key: latest, name: image-internal-key } }
+            - name: CALLBACK_SIGNING_SECRET
+              valueFrom:
+                { secretKeyRef: { key: latest, name: image-callback-secret } }

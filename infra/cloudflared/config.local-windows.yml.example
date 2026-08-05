@@ -1,0 +1,18 @@
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: C:\Users\REPLACE_WINDOWS_USER\.cloudflared\REPLACE_WITH_TUNNEL_UUID.json
+
+ingress:
+  # El webhook firmado de FAL queda publico para que FAL pueda responder.
+  - hostname: alturagrafica.mavdev.cloud
+    path: ^/webhooks/fal$
+    service: http://127.0.0.1:8787
+  - hostname: alturagrafica.mavdev.cloud
+    path: ^/health$
+    service: http://127.0.0.1:8787
+  - hostname: alturagrafica.mavdev.cloud
+    service: http://127.0.0.1:4173
+  - service: http_status:404
+
+# La PWA usa autenticacion local solo detras de Cloudflare Access. Mantenga una
+# aplicacion de Access para el hostname y una excepcion Bypass mas especifica
+# para /webhooks/fal.

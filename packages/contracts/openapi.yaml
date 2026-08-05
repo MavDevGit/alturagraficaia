@@ -1,0 +1,275 @@
+openapi: 3.1.0
+info:
+  title: Altura Gráfica IA API
+  version: 1.0.0
+  description: API autenticada con Firebase para trabajos de imagen y administración.
+servers:
+  - url: http://localhost:8000/api/v1
+security:
+  - firebaseBearer: []
+paths:
+  /uploads:
+    post:
+      operationId: uploadAsset
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201":
+          description: Original stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Asset" }
+  /jobs:
+    get:
+      operationId: listJobs
+      responses:
+        "200":
+          description: Paginated jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    { type: array, items: { $ref: "#/components/schemas/Job" } }
+                  meta:
+                    type: object
+                    required: [current_page, last_page, total]
+                    properties:
+                      current_page: { type: integer, minimum: 1 }
+                      last_page: { type: integer, minimum: 1 }
+                      total: { type: integer, minimum: 0 }
+    post:
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool, source_asset_id]
+              properties:
+                tool:
+                  {
+                    type: string,
+                    enum: [upscaler, background-remover, outpainting],
+                  }
+                source_asset_id: { type: string, format: uuid }
+                settings: { $ref: "#/components/schemas/JobSettings" }
+      responses:
+        "201":
+          description: Job created and credits reserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+  /jobs/{id}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: getJob
+      responses:
+        "200":
+          description: Job detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Job" }
+  /jobs/{id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: cancelJob
+      responses:
+        "200": { description: Cancelled job }
+  /assets/{id}/viewer:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: getAssetViewer
+      responses:
+        "200":
+          description: OpenSeadragon source descriptor
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ViewerSource" }
+  /assets/{id}/tiles/{level}/{tile}:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+      - name: level
+        in: path
+        required: true
+        schema: { type: integer, minimum: 0 }
+      - name: tile
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[0-9]+_[0-9]+\\.webp$' }
+    get:
+      operationId: getAssetTile
+      responses:
+        "200": { description: Lossless WebP tile }
+  /assets/{id}/download:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    get:
+      operationId: downloadAsset
+      responses:
+        "200": { description: Original binary }
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      responses:
+        "200": { description: Users and balances }
+  /admin/users/{id}/credits:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: adminAdjustCredits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, reason, idempotency_key]
+              properties:
+                amount:
+                  {
+                    type: integer,
+                    minimum: -100000,
+                    maximum: 100000,
+                    not: { const: 0 },
+                  }
+                reason: { type: string, maxLength: 500 }
+                idempotency_key: { type: string, maxLength: 100 }
+      responses:
+        "200": { description: Updated balance }
+  /admin/models:
+    get:
+      operationId: adminModels
+      responses:
+        "200": { description: Model configuration }
+  /admin/models/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    put:
+      operationId: adminUpdateModel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                provider: { type: string }
+                model: { type: string }
+                base_credits: { type: integer, minimum: 0 }
+                enabled: { type: boolean }
+                settings: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Updated model configuration }
+  /admin/secrets/status:
+    get:
+      operationId: adminSecretsStatus
+      responses:
+        "200": { description: Presence and rotation metadata only }
+  /admin/quotas:
+    get:
+      operationId: adminQuotaStatus
+      responses:
+        "200": { description: Current application quota usage and limits }
+components:
+  securitySchemes:
+    firebaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    JobSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        upscaleMode: { type: string, enum: [factor, target] }
+        scale: { type: number, minimum: 1, maximum: 10 }
+        targetResolution: { type: string, enum: [720p, 1080p, 1440p, 2160p] }
+        format: { type: string, enum: [png, jpeg, webp] }
+        fidelity: { type: number, minimum: 0, maximum: 1 }
+        mode: { type: string, enum: [high, fast] }
+        expandTop: { type: integer, minimum: 0, maximum: 4096 }
+        expandBottom: { type: integer, minimum: 0, maximum: 4096 }
+        expandLeft: { type: integer, minimum: 0, maximum: 4096 }
+        expandRight: { type: integer, minimum: 0, maximum: 4096 }
+    Asset:
+      type: object
+      required: [id, kind, status, width, height, viewer_url, download_url]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [original, result] }
+        status: { type: string, enum: [pending, ready, failed, expired] }
+        width: { type: integer }
+        height: { type: integer }
+        mime_type: { type: string }
+        byte_size: { type: integer, minimum: 0 }
+        expires_at: { type: string, format: date-time }
+        viewer_url: { type: string }
+        download_url: { type: string }
+    Job:
+      type: object
+      required: [id, tool, status, credits, source_asset]
+      properties:
+        id: { type: string, format: uuid }
+        tool: { type: string }
+        status:
+          {
+            type: string,
+            enum: [queued, processing, tiling, completed, failed, cancelled],
+          }
+        credits: { type: integer }
+        settings: { $ref: "#/components/schemas/JobSettings" }
+        error: { type: [string, "null"] }
+        source_asset: { $ref: "#/components/schemas/Asset" }
+        result_asset:
+          oneOf:
+            - { $ref: "#/components/schemas/Asset" }
+            - { type: "null" }
+    ViewerSource:
+      type: object
+      required:
+        [
+          id,
+          width,
+          height,
+          tile_size,
+          overlap,
+          format,
+          max_level,
+          ready,
+          tile_url,
+          token_expires_in,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        width: { type: integer }
+        height: { type: integer }
+        tile_size: { type: integer, const: 512 }
+        overlap: { type: integer, const: 1 }
+        format: { type: string, const: webp }
+        max_level: { type: integer }
+        tile_url: { type: string }
+        ready: { type: boolean }
+        token_expires_in: { type: integer }

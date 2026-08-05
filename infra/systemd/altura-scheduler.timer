@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Altura Grafica scheduler each minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
