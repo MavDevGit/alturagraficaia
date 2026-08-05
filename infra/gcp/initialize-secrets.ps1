@@ -53,7 +53,7 @@ if ($falValue.Length -lt 32 -or $falValue -match '\s') { throw 'La FAL_KEY local
 
 if (-not (Has-EnabledVersion 'fal-key')) { Add-SecretValue 'fal-key' $falValue }
 $falValue = $null
-foreach ($secretName in @('image-internal-key', 'image-callback-secret')) {
+foreach ($secretName in @('image-internal-key', 'image-callback-secret', 'backup-encryption-key')) {
   if (-not (Has-EnabledVersion $secretName)) {
     $generated = New-RandomSecret
     Add-SecretValue $secretName $generated
@@ -61,4 +61,4 @@ foreach ($secretName in @('image-internal-key', 'image-callback-secret')) {
   }
 }
 
-Write-Output 'Los tres secretos tienen al menos una versión habilitada.'
+Write-Output 'Los cuatro secretos tienen al menos una versión habilitada.'

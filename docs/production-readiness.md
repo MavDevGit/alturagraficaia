@@ -18,7 +18,8 @@ Desde la raíz del repositorio:
 El script habilita únicamente las APIs necesarias, crea los dos buckets
 privados, Artifact Registry, Cloud Tasks, cinco cuentas de servicio con permisos
 acotados y los recursos de Secret Manager. Después añada una versión a
-`fal-key`, `image-internal-key` e `image-callback-secret` usando entrada estándar
+`fal-key`, `image-internal-key`, `image-callback-secret` y
+`backup-encryption-key` usando entrada estándar
 o `infra/gcp/set-fal-key.ps1`; nunca incluya valores en argumentos o commits.
 
 Configure la federación exacta del repositorio, sin claves persistentes:

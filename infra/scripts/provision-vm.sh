@@ -38,6 +38,7 @@ install -m 0644 infra/systemd/altura-backup.service /etc/systemd/system/
 install -m 0644 infra/systemd/altura-backup.timer /etc/systemd/system/
 install -m 0750 infra/scripts/backup-postgres.sh /usr/local/sbin/altura-backup-postgres
 install -m 0750 infra/scripts/init-postgres.sh /usr/local/sbin/altura-init-postgres
+install -m 0750 infra/scripts/configure-production.sh /usr/local/sbin/altura-configure-production
 install -m 0750 infra/scripts/deploy.sh /usr/local/sbin/altura-deploy
 
 php-fpm8.3 -t

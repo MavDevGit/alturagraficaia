@@ -71,7 +71,7 @@ Ensure-ServiceAccount 'altura-tasks-invoker' 'Altura Cloud Tasks invoker'
 Ensure-ServiceAccount 'shared-vm-runtime' 'Shared production VM runtime'
 Ensure-ServiceAccount 'github-altura-deploy' 'GitHub Altura deploy'
 
-foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret')) { Ensure-Secret $secret }
+foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret', 'backup-encryption-key')) { Ensure-Secret $secret }
 
 & $Gcloud storage buckets add-iam-policy-binding "gs://$MediaBucketName" --member="serviceAccount:$WorkerSa" --role=roles/storage.objectAdmin | Out-Null
 & $Gcloud storage buckets add-iam-policy-binding "gs://$MediaBucketName" --member="serviceAccount:$WebhookSa" --role=roles/storage.objectViewer | Out-Null
@@ -83,6 +83,7 @@ foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret'))
   & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$WorkerSa" --role=roles/secretmanager.secretAccessor | Out-Null
   & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/secretmanager.viewer | Out-Null
 }
+& $Gcloud secrets add-iam-policy-binding backup-encryption-key --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/secretmanager.viewer | Out-Null
 & $Gcloud secrets add-iam-policy-binding image-internal-key --project=$ProjectId --member="serviceAccount:$WebhookSa" --role=roles/secretmanager.secretAccessor | Out-Null
 Assert-Gcloud 'autorizar secretos por recurso'
 
