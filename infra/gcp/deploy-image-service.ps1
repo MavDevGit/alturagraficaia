@@ -10,8 +10,9 @@ $GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
 if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
 $Gcloud = $GcloudCommand.Source
 $Region = 'us-central1'
-$WorkerRendered = Join-Path $env:TEMP "altura-worker-$([guid]::NewGuid()).yaml"
-$WebhookRendered = Join-Path $env:TEMP "altura-webhook-$([guid]::NewGuid()).yaml"
+$TemporaryRoot = [IO.Path]::GetTempPath()
+$WorkerRendered = Join-Path $TemporaryRoot "altura-worker-$([guid]::NewGuid()).yaml"
+$WebhookRendered = Join-Path $TemporaryRoot "altura-webhook-$([guid]::NewGuid()).yaml"
 function Assert-Gcloud([string]$Action) {
   if ($LASTEXITCODE -ne 0) { throw "gcloud no pudo completar: $Action" }
 }
