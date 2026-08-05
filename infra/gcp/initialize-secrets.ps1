@@ -3,7 +3,9 @@ param(
   [Parameter(Mandatory=$true)][string]$SourceEnvPath
 )
 $ErrorActionPreference = 'Stop'
-$Gcloud = (Get-Command gcloud.cmd -ErrorAction Stop).Source
+$GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
+$Gcloud = $GcloudCommand.Source
 
 function Assert-Gcloud([string]$Action) {
   if ($LASTEXITCODE -ne 0) { throw "gcloud no pudo completar: $Action" }

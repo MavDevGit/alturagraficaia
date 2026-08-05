@@ -6,7 +6,9 @@ param(
   [string]$VmServiceAccountEmail = "shared-vm-runtime@PROJECT_ID.iam.gserviceaccount.com"
 )
 $ErrorActionPreference = 'Stop'
-$Gcloud = (Get-Command gcloud.cmd -ErrorAction Stop).Source
+$GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
+$Gcloud = $GcloudCommand.Source
 $Region = 'us-central1'
 $WorkerRendered = Join-Path $env:TEMP "altura-worker-$([guid]::NewGuid()).yaml"
 $WebhookRendered = Join-Path $env:TEMP "altura-webhook-$([guid]::NewGuid()).yaml"

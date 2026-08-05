@@ -5,7 +5,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$Gcloud = (Get-Command gcloud.cmd -ErrorAction Stop).Source
+$GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
+$Gcloud = $GcloudCommand.Source
 $SecretName = 'fal-key'
 $temporaryFile = $null
 $secretPointer = [IntPtr]::Zero

@@ -5,7 +5,9 @@ param(
   [string]$FirebaseProjectId = "altura-grafica-ia"
 )
 $ErrorActionPreference = 'Stop'
-$Gcloud = (Get-Command gcloud.cmd -ErrorAction Stop).Source
+$GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
+if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
+$Gcloud = $GcloudCommand.Source
 $Region = 'us-central1'
 $WorkerSa = "altura-image-worker@$ProjectId.iam.gserviceaccount.com"
 $WebhookSa = "altura-image-webhook@$ProjectId.iam.gserviceaccount.com"
