@@ -32,10 +32,7 @@
     }
 
     log {
-        output file /var/log/caddy/altura-access.log {
-            roll_size 10mb
-            roll_keep 3
-        }
+        output stdout
     }
 }
 
