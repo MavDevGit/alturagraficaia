@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$Gcloud = (Get-Command gcloud.cmd -ErrorAction Stop).Source
 $SecretName = 'fal-key'
 $temporaryFile = $null
 $secretPointer = [IntPtr]::Zero
@@ -14,9 +15,13 @@ if (-not (Get-Command gcloud -ErrorAction SilentlyContinue)) {
   throw 'No se encontro gcloud. Instale Google Cloud CLI e inicie sesion antes de continuar.'
 }
 
-gcloud secrets describe $SecretName --project=$ProjectId 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
-  gcloud secrets create $SecretName --replication-policy=automatic --project=$ProjectId
+$secretExists = & {
+  $ErrorActionPreference = 'SilentlyContinue'
+  & $Gcloud secrets describe $SecretName --project=$ProjectId 2>$null | Out-Null
+  return $LASTEXITCODE -eq 0
+}
+if (-not $secretExists) {
+  & $Gcloud secrets create $SecretName --replication-policy=automatic --project=$ProjectId
   if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el secreto fal-key.' }
 }
 
@@ -40,7 +45,7 @@ try {
   )
   $plainSecret = $null
 
-  gcloud secrets versions add $SecretName --data-file=$temporaryFile --project=$ProjectId
+  & $Gcloud secrets versions add $SecretName --data-file=$temporaryFile --project=$ProjectId
   if ($LASTEXITCODE -ne 0) { throw 'No se pudo agregar la nueva version de fal-key.' }
 
   $rotationDate = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')

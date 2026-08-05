@@ -6,6 +6,7 @@ param(
   [string]$VmServiceAccountEmail = "shared-vm-runtime@PROJECT_ID.iam.gserviceaccount.com"
 )
 $ErrorActionPreference = 'Stop'
+$Gcloud = (Get-Command gcloud.cmd -ErrorAction Stop).Source
 $Region = 'us-central1'
 $WorkerRendered = Join-Path $env:TEMP "altura-worker-$([guid]::NewGuid()).yaml"
 $WebhookRendered = Join-Path $env:TEMP "altura-webhook-$([guid]::NewGuid()).yaml"
@@ -15,7 +16,7 @@ function Assert-Gcloud([string]$Action) {
 
 try {
   foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret')) {
-    $version = gcloud secrets versions list $secret --project=$ProjectId --filter='state=ENABLED' --limit=1 --format='value(name)'
+    $version = & $Gcloud secrets versions list $secret --project=$ProjectId --filter='state=ENABLED' --limit=1 --format='value(name)'
     Assert-Gcloud "consultar $secret"
     if (-not $version) { throw "El secreto $secret no tiene una versión habilitada." }
   }
@@ -28,24 +29,24 @@ try {
   $worker = $worker.Replace('PROJECT_ID', $ProjectId).Replace('BUCKET_NAME', $BucketName).Replace('IMAGE_TAG', $ImageTag)
   $worker = $worker.Replace('https://app.example.com/api/internal/image-callback', $CallbackUrl)
   [IO.File]::WriteAllText($WorkerRendered, $worker, (New-Object Text.UTF8Encoding($false)))
-  gcloud run services replace $WorkerRendered --region=$Region --project=$ProjectId --quiet
+  & $Gcloud run services replace $WorkerRendered --region=$Region --project=$ProjectId --quiet
   Assert-Gcloud 'desplegar worker privado'
-  $WorkerUrl = gcloud run services describe altura-image-worker --region=$Region --project=$ProjectId --format='value(status.url)'
+  $WorkerUrl = & $Gcloud run services describe altura-image-worker --region=$Region --project=$ProjectId --format='value(status.url)'
   Assert-Gcloud 'consultar URL del worker'
 
   $webhook = Get-Content infra/gcp/cloud-run-webhook.yaml -Raw
   $webhook = $webhook.Replace('PROJECT_ID', $ProjectId).Replace('BUCKET_NAME', $BucketName).Replace('IMAGE_TAG', $ImageTag).Replace('WORKER_URL', $WorkerUrl)
   [IO.File]::WriteAllText($WebhookRendered, $webhook, (New-Object Text.UTF8Encoding($false)))
-  gcloud run services replace $WebhookRendered --region=$Region --project=$ProjectId --quiet
+  & $Gcloud run services replace $WebhookRendered --region=$Region --project=$ProjectId --quiet
   Assert-Gcloud 'desplegar receptor público de webhook'
-  $WebhookUrl = gcloud run services describe altura-image-webhook --region=$Region --project=$ProjectId --format='value(status.url)'
+  $WebhookUrl = & $Gcloud run services describe altura-image-webhook --region=$Region --project=$ProjectId --format='value(status.url)'
   Assert-Gcloud 'consultar URL del webhook'
 
-  gcloud run services update altura-image-worker --region=$Region --project=$ProjectId --update-env-vars="FAL_WEBHOOK_URL=$WebhookUrl/webhooks/fal" --quiet
+  & $Gcloud run services update altura-image-worker --region=$Region --project=$ProjectId --update-env-vars="FAL_WEBHOOK_URL=$WebhookUrl/webhooks/fal" --quiet
   Assert-Gcloud 'conectar FAL con el receptor dedicado'
-  gcloud run services add-iam-policy-binding altura-image-webhook --region=$Region --project=$ProjectId --member=allUsers --role=roles/run.invoker --quiet | Out-Null
-  gcloud run services add-iam-policy-binding altura-image-worker --region=$Region --project=$ProjectId --member="serviceAccount:altura-tasks-invoker@$ProjectId.iam.gserviceaccount.com" --role=roles/run.invoker --quiet | Out-Null
-  gcloud run services add-iam-policy-binding altura-image-worker --region=$Region --project=$ProjectId --member="serviceAccount:$VmServiceAccountEmail" --role=roles/run.invoker --quiet | Out-Null
+  & $Gcloud run services add-iam-policy-binding altura-image-webhook --region=$Region --project=$ProjectId --member=allUsers --role=roles/run.invoker --quiet | Out-Null
+  & $Gcloud run services add-iam-policy-binding altura-image-worker --region=$Region --project=$ProjectId --member="serviceAccount:altura-tasks-invoker@$ProjectId.iam.gserviceaccount.com" --role=roles/run.invoker --quiet | Out-Null
+  & $Gcloud run services add-iam-policy-binding altura-image-worker --region=$Region --project=$ProjectId --member="serviceAccount:$VmServiceAccountEmail" --role=roles/run.invoker --quiet | Out-Null
   Assert-Gcloud 'aplicar invocadores mínimos'
 
   Write-Output "WORKER_URL=$WorkerUrl"
