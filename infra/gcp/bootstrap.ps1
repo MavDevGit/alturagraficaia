@@ -81,6 +81,7 @@ Assert-Gcloud 'autorizar buckets'
 
 foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret')) {
   & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$WorkerSa" --role=roles/secretmanager.secretAccessor | Out-Null
+  & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/secretmanager.viewer | Out-Null
 }
 & $Gcloud secrets add-iam-policy-binding image-internal-key --project=$ProjectId --member="serviceAccount:$WebhookSa" --role=roles/secretmanager.secretAccessor | Out-Null
 Assert-Gcloud 'autorizar secretos por recurso'
