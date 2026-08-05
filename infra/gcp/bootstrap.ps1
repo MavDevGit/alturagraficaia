@@ -107,7 +107,7 @@ if (-not (Test-Gcloud @('tasks', 'queues', 'describe', 'altura-image-finalize', 
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/compute.viewer | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/iap.tunnelResourceAccessor | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/compute.osAdminLogin | Out-Null
-foreach ($runtimeSa in @($WorkerSa, $WebhookSa)) {
+foreach ($runtimeSa in @($WorkerSa, $WebhookSa, $VmSa)) {
   & $Gcloud iam service-accounts add-iam-policy-binding $runtimeSa --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/iam.serviceAccountUser | Out-Null
 }
 Assert-Gcloud 'autorizar despliegue GitHub con mínimo privilegio'
