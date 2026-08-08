@@ -41,7 +41,7 @@ function Ensure-Secret([string]$Name) {
 
 & $Gcloud config set project $ProjectId
 Assert-Gcloud 'seleccionar el proyecto'
-& $Gcloud services enable run.googleapis.com storage.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com monitoring.googleapis.com iamcredentials.googleapis.com cloudtasks.googleapis.com --project $ProjectId
+& $Gcloud services enable run.googleapis.com storage.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com monitoring.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudtasks.googleapis.com --project $ProjectId
 Assert-Gcloud 'habilitar APIs'
 
 if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$MediaBucketName"))) {
