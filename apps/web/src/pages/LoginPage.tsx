@@ -72,6 +72,7 @@ export function LoginPage() {
     try {
       await auth.loginGoogle();
     } catch (reason) {
+      console.error("Google authentication failed", reason);
       setError(authErrorMessage(reason));
     } finally {
       setBusy(false);
@@ -261,6 +262,8 @@ function authErrorMessage(reason: unknown): string {
   };
   return (
     messages[code ?? ""] ??
-    "No se pudo completar la autenticación. Intenta nuevamente."
+    (code
+      ? `No se pudo completar la autenticación (${code}). Intenta nuevamente.`
+      : "No se pudo completar la autenticación. Intenta nuevamente.")
   );
 }
