@@ -256,6 +256,8 @@ function authErrorMessage(reason: unknown): string {
       "El navegador bloqueó la ventana de Google. Permítela e intenta nuevamente.",
     "auth/popup-closed-by-user":
       "La ventana de Google se cerró antes de completar el acceso.",
+    "auth/internal-error":
+      "Google no pudo iniciar la autenticación. Actualiza la página e intenta nuevamente.",
     "auth/too-many-requests":
       "Demasiados intentos. Espera unos minutos antes de reintentar.",
     "auth/weak-password": "Usa una contraseña de al menos ocho caracteres.",
