@@ -4,6 +4,8 @@ import type { User } from "@firebase/auth";
 export type AuthContextValue = {
   user: User | null;
   loading: boolean;
+  authError: string | null;
+  clearAuthError(): void;
   login(email: string, password: string): Promise<void>;
   register(email: string, password: string): Promise<void>;
   loginGoogle(): Promise<void>;

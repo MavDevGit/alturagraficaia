@@ -34,6 +34,11 @@ Guarde su salida y los valores Firebase públicos como variables del environment
 `production` de GitHub. El workflow inicial es manual para permitir preparar
 Cloud Run antes de modificar la VM.
 
+En Firebase Authentication habilite **Correo/contraseña** y **Google**, y añada
+el hostname final a los dominios autorizados. El proyecto configurado en las
+variables `VITE_FIREBASE_*` debe ser exactamente el mismo que
+`FIREBASE_PROJECT_ID` en la API.
+
 ## 2. Desplegar Cloud Run
 
 Ejecute el workflow **Deploy production** con `target=cloud-run`. Este compila,
@@ -67,6 +72,18 @@ la VM; no descargue credenciales JSON. Configure `/etc/altura/backup.env` y una
 clave aleatoria en `/etc/altura/backup.key` con modo `0600`, conservando una copia
 fuera de la VM.
 
+Si se migra a otro proyecto Firebase, editar el script del repositorio no
+actualiza el `.env` compartido que ya existe. Cambie explícitamente
+`FIREBASE_PROJECT_ID` en `/var/www/alturagrafica/shared/.env`, deje vacío
+`FIREBASE_AUTH_EMULATOR_HOST` y reconstruya la caché de configuración:
+
+```bash
+sudoedit /var/www/alturagrafica/shared/.env
+sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan config:clear
+sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan config:cache
+sudo systemctl reload php8.3-fpm
+```
+
 ## 4. Primer release y tráfico
 
 Ejecute nuevamente **Deploy production** con `target=all`. El workflow entrega
@@ -84,9 +101,24 @@ añada al túnel compartido la ruta:
 alturagrafica.mavdev.cloud → http://127.0.0.1:8082
 ```
 
+`target=cloud-run` no publica cambios de React ni Laravel en la VM; para una
+corrección de autenticación se requiere `target=all`.
+
 Elimine la ruta del túnel local únicamente después de validar HTTPS, login y un
 trabajo completo. Configure `alturagrafica.mavdev.cloud` como dominio autorizado
 en Firebase Authentication.
+
+Después de que el primer usuario inicie sesión una vez, habilite el primer
+administrador de forma explícita:
+
+```bash
+sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan \
+  users:promote-admin correo@empresa.com
+```
+
+A partir de entonces, el centro de administración permite conceder o quitar el
+rol a otros usuarios. La API impide degradar al último administrador para evitar
+un bloqueo total del panel.
 
 ## 5. Verificación obligatoria
 

@@ -9,6 +9,7 @@ use App\Services\CreditService;
 use App\Services\QuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
@@ -28,6 +29,44 @@ class AdminController extends Controller
         $updated = $credits->adjust($user, $data['amount'], $data['reason'], $data['idempotency_key']);
 
         return response()->json(['id' => $updated->id, 'credit_balance' => $updated->credit_balance]);
+    }
+
+    public function role(Request $request, User $user): JsonResponse
+    {
+        $data = $request->validate([
+            'role' => ['required', Rule::in(['user', 'admin'])],
+        ]);
+
+        $updated = DB::transaction(function () use ($data, $user): User {
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+            if ($lockedUser->role === $data['role']) {
+                return $lockedUser;
+            }
+
+            if ($lockedUser->isAdmin() && $data['role'] === 'user') {
+                $administrators = User::query()->where('role', 'admin');
+                if (config('altura.auth_driver') !== 'local') {
+                    $administrators->where('firebase_uid', '!=', 'local-admin');
+                }
+                $remainingAdministratorIds = $administrators
+                    ->lockForUpdate()
+                    ->pluck('id')
+                    ->reject(fn (string $id): bool => $id === $lockedUser->id);
+                abort_if(
+                    $remainingAdministratorIds->isEmpty(),
+                    409,
+                    'No se puede quitar el rol al último administrador.',
+                );
+            }
+
+            $lockedUser->forceFill(['role' => $data['role']])->save();
+
+            return $lockedUser->fresh();
+        }, 3);
+
+        return response()->json($updated->only([
+            'id', 'name', 'email', 'role', 'credit_balance', 'last_login_at',
+        ]));
     }
 
     public function models(): JsonResponse

@@ -27,6 +27,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('admin')->middleware(['admin', 'throttle:admin'])->group(function (): void {
             Route::get('/users', [AdminController::class, 'users']);
             Route::post('/users/{user}/credits', [AdminController::class, 'credits']);
+            Route::patch('/users/{user}/role', [AdminController::class, 'role']);
             Route::get('/models', [AdminController::class, 'models']);
             Route::put('/models/{toolSetting}', [AdminController::class, 'updateModel']);
             Route::get('/secrets/status', [AdminController::class, 'secrets']);

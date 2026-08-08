@@ -34,6 +34,7 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     setNotice("");
+    auth.clearAuthError();
     try {
       await (mode === "login"
         ? auth.login(email.trim(), password)
@@ -52,6 +53,7 @@ export function LoginPage() {
     }
     setBusy(true);
     setError("");
+    auth.clearAuthError();
     try {
       await auth.reset(email.trim());
       setNotice("Si la cuenta existe, recibirás un enlace de recuperación.");
@@ -66,6 +68,7 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     setNotice("");
+    auth.clearAuthError();
     try {
       await auth.loginGoogle();
     } catch (reason) {
@@ -97,7 +100,10 @@ export function LoginPage() {
             el resultado con mosaicos de alta resolución antes de descargar.
           </Typography>
         </Box>
-        <Box className="login-lens" aria-label="Demostración de comparación antes y después">
+        <Box
+          className="login-lens"
+          aria-label="Demostración de comparación antes y después"
+        >
           <Box className="lens-before">
             <span>Antes</span>
             <Box className="pixel-sample" />
@@ -106,7 +112,9 @@ export function LoginPage() {
             <span>Después</span>
             <Box className="detail-sample" />
           </Box>
-          <Box className="lens-divider"><AutoAwesomeRounded /></Box>
+          <Box className="lens-divider">
+            <AutoAwesomeRounded />
+          </Box>
         </Box>
         <Box className="login-proof">
           {[
@@ -125,7 +133,9 @@ export function LoginPage() {
         <Box className="login-card-heading">
           <Typography variant="overline">Tu espacio creativo</Typography>
           <Typography variant="h2">
-            {mode === "login" ? "Qué bueno tenerte de vuelta" : "Crea tu cuenta"}
+            {mode === "login"
+              ? "Qué bueno tenerte de vuelta"
+              : "Crea tu cuenta"}
           </Typography>
           <Typography color="text.secondary">
             {mode === "login"
@@ -145,62 +155,67 @@ export function LoginPage() {
           </Stack>
         ) : (
           <>
-        <Tabs
-          value={mode}
-          onChange={(_, value) => {
-            setMode(value);
-            setError("");
-            setNotice("");
-          }}
-          variant="fullWidth"
-        >
-          <Tab value="login" label="Ingresar" />
-          <Tab value="register" label="Crear cuenta" />
-        </Tabs>
-        {error && <Alert severity="error">{error}</Alert>}
-        {notice && <Alert severity="success">{notice}</Alert>}
-        <Stack component="form" spacing={2} onSubmit={submit}>
-          <TextField
-            label="Correo electrónico"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="email"
-            required
-          />
-          <TextField
-            label="Contraseña"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete={
-              mode === "login" ? "current-password" : "new-password"
-            }
-            required
-            slotProps={{ htmlInput: { minLength: mode === "login" ? 6 : 8 } }}
-          />
-          <Button variant="contained" type="submit" disabled={busy}>
-            {busy
-              ? "Conectando…"
-              : mode === "login"
-                ? "Ingresar"
-                : "Crear cuenta"}
-          </Button>
-        </Stack>
-        {mode === "login" && (
-          <Button size="small" disabled={busy} onClick={resetPassword}>
-            Olvidé mi contraseña
-          </Button>
-        )}
-        <Divider>o continúa con</Divider>
-        <Button
-          variant="outlined"
-          startIcon={<Google />}
-          disabled={busy}
-          onClick={googleLogin}
-        >
-          Google
-        </Button>
+            <Tabs
+              value={mode}
+              onChange={(_, value) => {
+                setMode(value);
+                setError("");
+                setNotice("");
+                auth.clearAuthError();
+              }}
+              variant="fullWidth"
+            >
+              <Tab value="login" label="Ingresar" />
+              <Tab value="register" label="Crear cuenta" />
+            </Tabs>
+            {(error || auth.authError) && (
+              <Alert severity="error">{error || auth.authError}</Alert>
+            )}
+            {notice && <Alert severity="success">{notice}</Alert>}
+            <Stack component="form" spacing={2} onSubmit={submit}>
+              <TextField
+                label="Correo electrónico"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
+                required
+              />
+              <TextField
+                label="Contraseña"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete={
+                  mode === "login" ? "current-password" : "new-password"
+                }
+                required
+                slotProps={{
+                  htmlInput: { minLength: mode === "login" ? 6 : 8 },
+                }}
+              />
+              <Button variant="contained" type="submit" disabled={busy}>
+                {busy
+                  ? "Conectando…"
+                  : mode === "login"
+                    ? "Ingresar"
+                    : "Crear cuenta"}
+              </Button>
+            </Stack>
+            {mode === "login" && (
+              <Button size="small" disabled={busy} onClick={resetPassword}>
+                Olvidé mi contraseña
+              </Button>
+            )}
+            <Divider>o continúa con</Divider>
+            <Button
+              variant="outlined"
+              startIcon={<Google />}
+              disabled={busy}
+              onClick={googleLogin}
+            >
+              Google
+            </Button>
           </>
         )}
         <Box className="login-security">
@@ -217,6 +232,10 @@ export function LoginPage() {
 }
 
 function authErrorMessage(reason: unknown): string {
+  const apiError = reason as { status?: number; message?: string };
+  if (apiError?.status === 401) {
+    return `Firebase aceptó la cuenta, pero la API no pudo validarla: ${apiError.message ?? "token rechazado"}`;
+  }
   const code = (reason as { code?: string })?.code;
   const messages: Record<string, string> = {
     "auth/email-already-in-use":
@@ -227,9 +246,11 @@ function authErrorMessage(reason: unknown): string {
     "auth/wrong-password": "El correo o la contraseña no son correctos.",
     "auth/invalid-email": "El correo electrónico no tiene un formato válido.",
     "auth/network-request-failed":
-      "No se pudo conectar con Firebase. Comprueba que el emulador esté iniciado.",
+      "No se pudo conectar con Firebase. Comprueba tu conexión e intenta nuevamente.",
     "auth/operation-not-allowed":
       "Este método de acceso no está habilitado en Firebase.",
+    "auth/unauthorized-domain":
+      "Este dominio no está autorizado en Firebase Authentication.",
     "auth/popup-blocked":
       "El navegador bloqueó la ventana de Google. Permítela e intenta nuevamente.",
     "auth/popup-closed-by-user":

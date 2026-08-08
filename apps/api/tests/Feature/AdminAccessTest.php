@@ -27,6 +27,22 @@ it('returns and preserves the administrator role after Firebase synchronization'
         ->toBe('admin');
 });
 
+it('synchronizes a new authenticated user once without duplicating initial credits', function (): void {
+    config()->set('altura.initial_credits', 20);
+    $headers = ['Authorization' => 'Bearer local:new-synchronized-user'];
+
+    $this->getJson('/api/v1/me', $headers)
+        ->assertOk()
+        ->assertJsonPath('credit_balance', 20)
+        ->assertJsonPath('role', 'user');
+    $this->getJson('/api/v1/me', $headers)
+        ->assertOk()
+        ->assertJsonPath('credit_balance', 20);
+
+    expect(User::query()->where('firebase_uid', 'new-synchronized-user')->count())
+        ->toBe(1);
+});
+
 it('requires a nonzero idempotent administrative credit adjustment', function (): void {
     $admin = User::factory()->create(['firebase_uid' => 'credit-admin', 'role' => 'admin']);
     $target = User::factory()->create(['credit_balance' => 20]);
@@ -49,6 +65,52 @@ it('requires a nonzero idempotent administrative credit adjustment', function ()
     $this->postJson("/api/v1/admin/users/{$target->id}/credits", $payload, $headers)
         ->assertOk()
         ->assertJsonPath('credit_balance', 25);
+});
+
+it('allows an administrator to promote and demote another user', function (): void {
+    User::factory()->create(['firebase_uid' => 'role-admin', 'role' => 'admin']);
+    $target = User::factory()->create(['role' => 'user']);
+    $headers = ['Authorization' => 'Bearer local:role-admin'];
+
+    $this->patchJson("/api/v1/admin/users/{$target->id}/role", [
+        'role' => 'admin',
+    ], $headers)
+        ->assertOk()
+        ->assertJsonPath('role', 'admin');
+
+    $this->patchJson("/api/v1/admin/users/{$target->id}/role", [
+        'role' => 'user',
+    ], $headers)
+        ->assertOk()
+        ->assertJsonPath('role', 'user');
+
+    expect($target->fresh()->role)->toBe('user');
+});
+
+it('never allows the last administrator to be demoted', function (): void {
+    $admin = User::factory()->create([
+        'firebase_uid' => 'only-role-admin',
+        'role' => 'admin',
+    ]);
+
+    $this->patchJson("/api/v1/admin/users/{$admin->id}/role", [
+        'role' => 'user',
+    ], ['Authorization' => 'Bearer local:only-role-admin'])
+        ->assertStatus(409)
+        ->assertJsonPath('message', 'No se puede quitar el rol al último administrador.');
+
+    expect($admin->fresh()->role)->toBe('admin');
+});
+
+it('validates administrative role changes', function (): void {
+    User::factory()->create(['firebase_uid' => 'validation-admin', 'role' => 'admin']);
+    $target = User::factory()->create();
+
+    $this->patchJson("/api/v1/admin/users/{$target->id}/role", [
+        'role' => 'owner',
+    ], ['Authorization' => 'Bearer local:validation-admin'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('role');
 });
 
 it('reports only FAL secret metadata and never exposes the key', function (): void {

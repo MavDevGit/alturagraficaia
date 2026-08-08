@@ -24,6 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddCardRounded from "@mui/icons-material/AddCardRounded";
+import ManageAccountsRounded from "@mui/icons-material/ManageAccountsRounded";
 import KeyRounded from "@mui/icons-material/KeyRounded";
 import PeopleAltRounded from "@mui/icons-material/PeopleAltRounded";
 import MemoryRounded from "@mui/icons-material/MemoryRounded";
@@ -73,6 +74,7 @@ function QueryState({
 export function AdminPage() {
   const [tab, setTab] = useState(0);
   const [selected, setSelected] = useState<AdminUser | null>(null);
+  const [roleTarget, setRoleTarget] = useState<AdminUser | null>(null);
   const [amount, setAmount] = useState(10);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const queryClient = useQueryClient();
@@ -111,6 +113,24 @@ export function AdminPage() {
       closeEditor();
     },
   });
+  const updateRole = useMutation({
+    mutationFn: ({
+      user,
+      role,
+    }: {
+      user: AdminUser;
+      role: AdminUser["role"];
+    }) =>
+      api<AdminUser>(`/admin/users/${user.id}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["me"] });
+      setRoleTarget(null);
+    },
+  });
   const updateModel = useMutation({
     mutationFn: (model: ModelSetting) =>
       api(`/admin/models/${model.id}`, {
@@ -133,6 +153,7 @@ export function AdminPage() {
     adjust.reset();
   };
   const amountIsValid = Number.isInteger(amount) && amount !== 0;
+  const nextRole = roleTarget?.role === "admin" ? "user" : "admin";
 
   return (
     <StudioShell>
@@ -160,10 +181,18 @@ export function AdminPage() {
           scrollButtons="auto"
           aria-label="Secciones de administración"
         >
-          <Tab icon={<PeopleAltRounded />} iconPosition="start" label="Usuarios" />
+          <Tab
+            icon={<PeopleAltRounded />}
+            iconPosition="start"
+            label="Usuarios"
+          />
           <Tab icon={<MemoryRounded />} iconPosition="start" label="Modelos" />
           <Tab icon={<KeyRounded />} iconPosition="start" label="Secretos" />
-          <Tab icon={<DataUsageRounded />} iconPosition="start" label="Cuotas" />
+          <Tab
+            icon={<DataUsageRounded />}
+            iconPosition="start"
+            label="Cuotas"
+          />
         </Tabs>
         {tab === 0 && (
           <>
@@ -213,12 +242,30 @@ export function AdminPage() {
                           {user.credit_balance}
                         </TableCell>
                         <TableCell align="right">
-                          <Button
-                            startIcon={<AddCardRounded />}
-                            onClick={() => openEditor(user)}
+                          <Stack
+                            direction="row"
+                            sx={{ gap: 1, justifyContent: "flex-end" }}
                           >
-                            Ajustar
-                          </Button>
+                            <Button
+                              size="small"
+                              startIcon={<ManageAccountsRounded />}
+                              onClick={() => {
+                                updateRole.reset();
+                                setRoleTarget(user);
+                              }}
+                            >
+                              {user.role === "admin"
+                                ? "Quitar admin"
+                                : "Hacer admin"}
+                            </Button>
+                            <Button
+                              size="small"
+                              startIcon={<AddCardRounded />}
+                              onClick={() => openEditor(user)}
+                            >
+                              Créditos
+                            </Button>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -237,7 +284,11 @@ export function AdminPage() {
             />
             <Box className="history-grid">
               {models.data?.data.map((model) => (
-                <Paper key={model.tool} className="history-card admin-resource-card" elevation={0}>
+                <Paper
+                  key={model.tool}
+                  className="history-card admin-resource-card"
+                  elevation={0}
+                >
                   <Chip
                     label={model.enabled ? "Activo" : "Inactivo"}
                     color={model.enabled ? "success" : "default"}
@@ -389,6 +440,57 @@ export function AdminPage() {
               onClick={() => adjust.mutate()}
             >
               {adjust.isPending ? "Aplicando…" : "Aplicar ajuste"}
+            </Button>
+          </DialogActions>
+        </Dialog>
+        <Dialog
+          open={roleTarget !== null}
+          onClose={() => !updateRole.isPending && setRoleTarget(null)}
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle>
+            {nextRole === "admin"
+              ? "Conceder acceso administrativo"
+              : "Quitar acceso administrativo"}
+          </DialogTitle>
+          <DialogContent>
+            <Stack sx={{ gap: 2, pt: 1 }}>
+              <Typography>
+                {nextRole === "admin"
+                  ? `${roleTarget?.email} podrá administrar usuarios, modelos, cuotas y créditos.`
+                  : `${roleTarget?.email} perderá el acceso al centro de administración.`}
+              </Typography>
+              {updateRole.isError && (
+                <Alert severity="error">
+                  {updateRole.error instanceof Error
+                    ? updateRole.error.message
+                    : "No se pudo cambiar el rol."}
+                </Alert>
+              )}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setRoleTarget(null)}
+              disabled={updateRole.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color={nextRole === "admin" ? "primary" : "warning"}
+              disabled={!roleTarget || updateRole.isPending}
+              onClick={() =>
+                roleTarget &&
+                updateRole.mutate({ user: roleTarget, role: nextRole })
+              }
+            >
+              {updateRole.isPending
+                ? "Guardando…"
+                : nextRole === "admin"
+                  ? "Hacer administrador"
+                  : "Quitar rol"}
             </Button>
           </DialogActions>
         </Dialog>

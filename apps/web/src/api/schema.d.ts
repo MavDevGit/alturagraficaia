@@ -162,6 +162,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["adminUpdateUserRole"];
+        trace?: never;
+    };
     "/admin/models": {
         parameters: {
             query?: never;
@@ -532,6 +550,40 @@ export interface operations {
         responses: {
             /** @description Updated balance */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    adminUpdateUserRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    role: "user" | "admin";
+                };
+            };
+        };
+        responses: {
+            /** @description Updated user role */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The last administrator cannot be demoted */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

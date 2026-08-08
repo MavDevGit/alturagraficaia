@@ -150,6 +150,23 @@ paths:
                 idempotency_key: { type: string, maxLength: 100 }
       responses:
         "200": { description: Updated balance }
+  /admin/users/{id}/role:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    patch:
+      operationId: adminUpdateUserRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { type: string, enum: [user, admin] }
+      responses:
+        "200": { description: Updated user role }
+        "409": { description: The last administrator cannot be demoted }
   /admin/models:
     get:
       operationId: adminModels

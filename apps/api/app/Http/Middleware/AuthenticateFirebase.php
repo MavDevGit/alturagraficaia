@@ -7,6 +7,7 @@ use App\Services\FirebaseTokenVerifier;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -29,16 +30,24 @@ class AuthenticateFirebase
             return new JsonResponse(['message' => 'El token de Firebase no es válido.'], 401);
         }
 
-        $user = User::query()->updateOrCreate(['firebase_uid' => $identity['uid']], [
+        $now = now();
+        User::query()->upsert([[
+            'id' => (string) Str::uuid(),
+            'firebase_uid' => $identity['uid'],
             'email' => $identity['email'],
             'name' => $identity['name'],
             'avatar_url' => $identity['picture'],
-            'email_verified_at' => $identity['email_verified'] ? now() : null,
-            'last_login_at' => now(),
+            'email_verified_at' => $identity['email_verified'] ? $now : null,
+            'role' => 'user',
+            'credit_balance' => config('altura.initial_credits'),
+            'last_login_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]], ['firebase_uid'], [
+            'email', 'name', 'avatar_url', 'email_verified_at', 'last_login_at',
+            'updated_at',
         ]);
-        if ($user->wasRecentlyCreated) {
-            $user->forceFill(['credit_balance' => config('altura.initial_credits')])->save();
-        }
+        $user = User::query()->where('firebase_uid', $identity['uid'])->firstOrFail();
 
         auth()->setUser($user);
         $request->setUserResolver(fn () => $user);

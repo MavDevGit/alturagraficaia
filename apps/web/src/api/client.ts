@@ -52,7 +52,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       payload.errors,
     );
     if (response.status === 401)
-      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      window.dispatchEvent(
+        new CustomEvent(AUTH_EXPIRED_EVENT, {
+          detail: { message: error.message },
+        }),
+      );
     throw error;
   }
   return response.json() as Promise<T>;

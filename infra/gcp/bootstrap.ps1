@@ -2,7 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$ProjectId,
   [Parameter(Mandatory=$true)][string]$MediaBucketName,
   [Parameter(Mandatory=$true)][string]$BackupBucketName,
-  [string]$FirebaseProjectId = "altura-grafica-ia"
+  [string]$FirebaseProjectId = "altura-grafica-ia-6faf1"
 )
 $ErrorActionPreference = 'Stop'
 $GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue

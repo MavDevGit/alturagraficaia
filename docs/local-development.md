@@ -8,6 +8,13 @@ Requisitos: Node 22, PHP 8.3 o superior con `pdo_pgsql`, PostgreSQL 16, Java 21,
 4. Ejecute `npm run setup` desde la raíz y `php apps/api/artisan migrate --seed`.
 5. Ejecute `npm run dev`.
 
+El entorno local usa Firebase Auth Emulator tanto en React como en Laravel. Los
+dos lados deben conservar el mismo `FIREBASE_PROJECT_ID`, el frontend debe tener
+`VITE_USE_AUTH_EMULATOR=true` y la API debe usar `AUTH_DRIVER=firebase` con
+`FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`. De esta forma el registro por
+correo y el flujo simulado de Google se prueban sin crear cuentas reales. El
+modo `AUTH_DRIVER=local` es solo un bypass aislado y no valida el registro.
+
 Para mantener disponibles desarrollo y produccion local en paralelo, ejecute `npm run local:start`. La API, el worker, Image Service y Firebase Emulator son compartidos por ambos frontends. Use `npm run local:status` para verificar el entorno y `npm run local:stop` para cerrarlo.
 
 Para consumir FAL real desde esta PC mediante Cloudflare Tunnel, siga
