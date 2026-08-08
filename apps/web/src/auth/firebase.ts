@@ -1,27 +1,5 @@
 import { initializeApp, type FirebaseOptions } from "firebase/app";
-import {
-  browserPopupRedirectResolver,
-  connectAuthEmulator,
-  getAuth,
-} from "@firebase/auth";
-
-type PopupResolverWithStorageProbe = {
-  _isIframeWebStorageSupported?: (
-    auth: unknown,
-    callback: (supported: boolean) => unknown,
-  ) => void;
-};
-
-// @firebase/auth 1.13.x throws auth/internal-error after its iframe storage
-// callback succeeds. Until the upstream probe is corrected, skip only that
-// broken probe; Firebase still validates the origin and OAuth response.
-const popupResolver =
-  browserPopupRedirectResolver as PopupResolverWithStorageProbe;
-if (popupResolver._isIframeWebStorageSupported) {
-  popupResolver._isIframeWebStorageSupported = (_auth, callback) => {
-    callback(true);
-  };
-}
+import { connectAuthEmulator, getAuth } from "@firebase/auth";
 
 const localMode = import.meta.env.VITE_AUTH_DRIVER === "local";
 const firebaseConfig: FirebaseOptions = {
