@@ -12,6 +12,7 @@ Desde la raíz del repositorio:
   -ProjectId PROJECT_ID `
   -MediaBucketName MEDIA_BUCKET `
   -BackupBucketName BACKUP_BUCKET `
+  -AppUrl https://app.example.com `
   -FirebaseProjectId FIREBASE_PROJECT_ID
 ```
 
@@ -27,8 +28,9 @@ servicios automáticamente:
 ```
 
 El script habilita únicamente las APIs necesarias, crea los dos buckets
-privados, Artifact Registry, Cloud Tasks, cinco cuentas de servicio con permisos
-acotados y los recursos de Secret Manager. Después añada una versión a
+privados, configura CORS de solo lectura para que la PWA pueda mostrar y
+descargar objetos firmados, y prepara Artifact Registry, Cloud Tasks, cinco
+cuentas de servicio con permisos acotados y los recursos de Secret Manager. Después añada una versión a
 `fal-key`, `image-internal-key`, `image-callback-secret` y
 `backup-encryption-key` usando entrada estándar
 o `infra/gcp/set-fal-key.ps1`; nunca incluya valores en argumentos o commits.

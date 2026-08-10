@@ -2,6 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$ProjectId,
   [Parameter(Mandatory=$true)][string]$MediaBucketName,
   [Parameter(Mandatory=$true)][string]$BackupBucketName,
+  [Parameter(Mandatory=$true)][ValidatePattern('^https://')][string]$AppUrl,
   [string]$FirebaseProjectId = "altura-grafica-ia-6faf1"
 )
 $ErrorActionPreference = 'Stop'
@@ -48,8 +49,22 @@ if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$MediaBucketName
   & $Gcloud storage buckets create "gs://$MediaBucketName" --project=$ProjectId --location=$Region --uniform-bucket-level-access
   Assert-Gcloud 'crear bucket de medios'
 }
-& $Gcloud storage buckets update "gs://$MediaBucketName" --lifecycle-file=infra/gcp/storage-lifecycle.json --public-access-prevention --clear-soft-delete
-Assert-Gcloud 'asegurar bucket efímero de medios'
+$CorsFile = Join-Path ([IO.Path]::GetTempPath()) "altura-media-cors-$([guid]::NewGuid()).json"
+$Cors = @(
+  @{
+    origin = @($AppUrl.TrimEnd('/'))
+    method = @('GET', 'HEAD')
+    responseHeader = @('Content-Type', 'Content-Disposition', 'Content-Length', 'ETag', 'Accept-Ranges', 'Content-Range')
+    maxAgeSeconds = 3600
+  }
+) | ConvertTo-Json -Depth 4
+try {
+  [IO.File]::WriteAllText($CorsFile, $Cors, (New-Object Text.UTF8Encoding($false)))
+  & $Gcloud storage buckets update "gs://$MediaBucketName" --lifecycle-file=infra/gcp/storage-lifecycle.json --cors-file=$CorsFile --public-access-prevention --clear-soft-delete
+  Assert-Gcloud 'asegurar bucket efímero de medios y su CORS privado'
+} finally {
+  if (Test-Path -LiteralPath $CorsFile) { Remove-Item -LiteralPath $CorsFile -Force }
+}
 
 if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$BackupBucketName"))) {
   & $Gcloud storage buckets create "gs://$BackupBucketName" --project=$ProjectId --location=$Region --uniform-bucket-level-access --soft-delete-duration=7d

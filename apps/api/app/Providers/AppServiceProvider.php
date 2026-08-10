@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
+use League\Flysystem\Config;
 use League\Flysystem\Filesystem;
 use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
 use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
@@ -43,7 +44,20 @@ class AppServiceProvider extends ServiceProvider
                 new UniformBucketLevelAccessVisibility,
             );
 
-            return new FilesystemAdapter(new Filesystem($adapter), $adapter, $config);
+            $filesystem = new FilesystemAdapter(new Filesystem($adapter), $adapter, $config);
+
+            // Laravel expects adapters to expose getTemporaryUrl(), while the
+            // Flysystem GCS adapter implements TemporaryUrlGenerator::temporaryUrl().
+            // Register the bridge explicitly so tiles and downloads can be signed.
+            $filesystem->buildTemporaryUrlsUsing(
+                fn (string $path, $expiration, array $options): string => $adapter->temporaryUrl(
+                    $path,
+                    $expiration,
+                    new Config($options),
+                ),
+            );
+
+            return $filesystem;
         });
     }
 
