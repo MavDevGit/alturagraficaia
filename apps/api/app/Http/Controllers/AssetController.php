@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Services\AssetAccessToken;
+use App\Services\QuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AssetController extends Controller
 {
@@ -36,7 +36,7 @@ class AssetController extends Controller
         ]);
     }
 
-    public function tile(Request $request, Asset $asset, int $level, string $tile, AssetAccessToken $tokens): Response
+    public function tile(Request $request, Asset $asset, int $level, string $tile, AssetAccessToken $tokens, QuotaService $quotas): Response
     {
         abort_unless($tokens->valid($asset, $request->query('token')), 401);
         abort_unless((bool) preg_match('/^\d+_\d+\.webp$/', $tile), 404);
@@ -44,7 +44,9 @@ class AssetController extends Controller
         $disk = Storage::disk($asset->storage_disk);
         $canonicalPath = "{$asset->tile_prefix}/image_files/{$level}/{$tile}";
         if ($asset->storage_disk === 'gcs') {
-            return redirect()->away($disk->temporaryUrl($canonicalPath, now()->addMinutes(15)), 302, [
+            $quotas->reserveGcsRead(config('altura.gcs_tile_egress_estimate_bytes'));
+
+            return redirect()->away($disk->temporaryUrl($canonicalPath, now()->addSeconds(config('altura.gcs_signed_url_ttl_seconds'))), 302, [
                 'Cache-Control' => 'private, no-store',
             ]);
         }
@@ -60,15 +62,17 @@ class AssetController extends Controller
         ]);
     }
 
-    public function download(Request $request, Asset $asset): Response
+    public function download(Request $request, Asset $asset, QuotaService $quotas): Response
     {
         $this->authorizeAsset($request, $asset);
         $name = $asset->kind === 'result' ? 'altura-grafica-ia-'.$asset->id.'.'.pathinfo($asset->storage_path, PATHINFO_EXTENSION) : $asset->original_name;
 
         $disk = Storage::disk($asset->storage_disk);
         if ($asset->storage_disk === 'gcs') {
+            $quotas->reserveGcsRead(max(1, $asset->byte_size));
             $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename((string) $name)) ?: 'download';
-            return redirect()->away($disk->temporaryUrl($asset->storage_path, now()->addMinutes(10), [
+
+            return redirect()->away($disk->temporaryUrl($asset->storage_path, now()->addSeconds(config('altura.gcs_signed_url_ttl_seconds')), [
                 'gcp_signing_options' => ['responseDisposition' => 'attachment; filename="'.$safeName.'"'],
             ]), 302, ['Cache-Control' => 'private, no-store']);
         }

@@ -86,6 +86,13 @@ jobs:
           docker build --tag "$IMAGE" apps/image-service
           docker push "$IMAGE"
 
+      - name: Enforce Artifact Registry retention
+        shell: bash
+        run: |
+          gcloud artifacts repositories set-cleanup-policies altura \
+            --location="$GCP_REGION" --project="$GCP_PROJECT_ID" \
+            --policy=infra/gcp/artifact-cleanup.json --quiet
+
       - name: Deploy Cloud Run services
         shell: pwsh
         run: ./infra/gcp/deploy-image-service.ps1 -ProjectId $env:GCP_PROJECT_ID -BucketName $env:MEDIA_BUCKET -CallbackUrl "$env:APP_URL/api/internal/image-callback" -ImageTag $env:GITHUB_SHA

@@ -23,6 +23,12 @@ return [
     'image_jobs_hard_limit' => (int) env('IMAGE_JOBS_HARD_LIMIT', 100),
     'gcs_class_a_soft_limit' => (int) env('GCS_CLASS_A_SOFT_LIMIT', 4200),
     'gcs_class_a_hard_limit' => (int) env('GCS_CLASS_A_HARD_LIMIT', 4700),
+    'gcs_class_b_soft_limit' => (int) env('GCS_CLASS_B_SOFT_LIMIT', 42000),
+    'gcs_class_b_hard_limit' => (int) env('GCS_CLASS_B_HARD_LIMIT', 47000),
+    'gcs_egress_soft_limit_bytes' => (int) env('GCS_EGRESS_SOFT_LIMIT_BYTES', 80000000000),
+    'gcs_egress_hard_limit_bytes' => (int) env('GCS_EGRESS_HARD_LIMIT_BYTES', 90000000000),
+    'gcs_tile_egress_estimate_bytes' => (int) env('GCS_TILE_EGRESS_ESTIMATE_BYTES', 1048576),
+    'gcs_signed_url_ttl_seconds' => (int) env('GCS_SIGNED_URL_TTL_SECONDS', 60),
     'job_stale_minutes' => (int) env('JOB_STALE_MINUTES', 720),
     'secret_status' => [
         'fal' => [

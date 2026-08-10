@@ -37,9 +37,15 @@ atraviesan la memoria limitada de la VM.
   efímeros. Los backups cifrados usan otro bucket y retención de 30 días.
 - Operaciones GCS: Laravel reserva el número estimado de objetos de cada
   pirámide y detiene nuevos trabajos antes de 4.700 operaciones Class A/mes.
+- Lecturas GCS: cada URL firmada reserva una operación Class B y transferencia;
+  los topes mensuales son 47.000 lecturas y 90 GB. Cada mosaico reserva 1 MiB
+  aunque normalmente sea menor, dejando margen para reutilización de la URL.
 - Cloud Tasks: una cola, una ejecución concurrente y reintentos acotados.
-- Artifact Registry conserva tres imágenes recientes y elimina las antiguas.
+- Artifact Registry conserva tres imágenes recientes y elimina versiones con
+  más de tres días; el workflow reafirma la política en cada despliegue.
 - Secret Manager mantiene solo secretos de runtime; no hay claves JSON.
+- Un presupuesto mensual de USD 5 avisa al 10 %, 50 %, 90 % y 100 %, además de
+  alertar si el gasto previsto alcanza el 100 %.
 
 Los límites aplicativos reducen el riesgo, pero no son un tope de facturación.
 FAL, dominios, exceso de red/almacenamiento y cualquier consumo fuera de las

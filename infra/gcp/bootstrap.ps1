@@ -41,7 +41,7 @@ function Ensure-Secret([string]$Name) {
 
 & $Gcloud config set project $ProjectId
 Assert-Gcloud 'seleccionar el proyecto'
-& $Gcloud services enable run.googleapis.com storage.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com monitoring.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudtasks.googleapis.com identitytoolkit.googleapis.com --project $ProjectId
+& $Gcloud services enable run.googleapis.com storage.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com monitoring.googleapis.com billingbudgets.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudtasks.googleapis.com identitytoolkit.googleapis.com --project $ProjectId
 Assert-Gcloud 'habilitar APIs'
 
 if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$MediaBucketName"))) {
@@ -102,7 +102,7 @@ if (-not (Test-Gcloud @('tasks', 'queues', 'describe', 'altura-image-finalize', 
 }
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$WebhookSa" --role=roles/cloudtasks.enqueuer | Out-Null
 & $Gcloud iam service-accounts add-iam-policy-binding $TasksInvokerSa --project=$ProjectId --member="serviceAccount:$WebhookSa" --role=roles/iam.serviceAccountUser | Out-Null
-& $Gcloud artifacts repositories add-iam-policy-binding altura --location=$Region --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/artifactregistry.writer | Out-Null
+& $Gcloud artifacts repositories add-iam-policy-binding altura --location=$Region --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/artifactregistry.repoAdmin | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/run.admin | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/compute.viewer | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/iap.tunnelResourceAccessor | Out-Null

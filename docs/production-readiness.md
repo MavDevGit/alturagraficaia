@@ -15,6 +15,17 @@ Desde la raíz del repositorio:
   -FirebaseProjectId FIREBASE_PROJECT_ID
 ```
 
+Configure también el presupuesto del proyecto. Los avisos llegan a los usuarios
+con roles de facturación de la cuenta; el presupuesto alerta, pero no apaga
+servicios automáticamente:
+
+```powershell
+./infra/gcp/configure-budget.ps1 `
+  -ProjectId PROJECT_ID `
+  -BillingAccountId BILLING_ACCOUNT_ID `
+  -BudgetAmountUsd 5
+```
+
 El script habilita únicamente las APIs necesarias, crea los dos buckets
 privados, Artifact Registry, Cloud Tasks, cinco cuentas de servicio con permisos
 acotados y los recursos de Secret Manager. Después añada una versión a
@@ -136,7 +147,7 @@ Compruebe métricas de memoria/swap, almacenamiento y cuotas tras la primera car
 
 ## Controles de lanzamiento
 
-- Alertas de presupuesto y canales de Monitoring activos.
+- Presupuesto mensual verificado y destinatarios IAM de facturación activos.
 - Firebase: dominios autorizados y proveedores de login verificados.
 - FAL: clave rotada, webhook real y saldo/coste entendido.
 - GitHub: protección de `main`, revisión de Dependabot y environment protegido.

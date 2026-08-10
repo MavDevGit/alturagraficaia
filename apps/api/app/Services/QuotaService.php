@@ -17,6 +17,10 @@ class QuotaService
 
     public const GCS_CLASS_A = 'gcs_class_a_operations';
 
+    public const GCS_CLASS_B = 'gcs_class_b_operations';
+
+    public const GCS_EGRESS = 'gcs_egress_bytes';
+
     public function reserveStorage(int $bytes): void
     {
         $this->reserve(
@@ -45,6 +49,24 @@ class QuotaService
             config('altura.gcs_class_a_soft_limit'),
             config('altura.gcs_class_a_hard_limit'),
         );
+    }
+
+    public function reserveGcsRead(int $bytes): void
+    {
+        DB::transaction(function () use ($bytes): void {
+            $this->reserveWithinTransaction(
+                self::GCS_CLASS_B,
+                1,
+                config('altura.gcs_class_b_soft_limit'),
+                config('altura.gcs_class_b_hard_limit'),
+            );
+            $this->reserveWithinTransaction(
+                self::GCS_EGRESS,
+                max(1, $bytes),
+                config('altura.gcs_egress_soft_limit_bytes'),
+                config('altura.gcs_egress_hard_limit_bytes'),
+            );
+        }, 3);
     }
 
     /** @param array<string,mixed> $settings */
@@ -212,7 +234,7 @@ class QuotaService
     }
 
     /** @param array<string,mixed> $settings
-     *  @return array{width:int,height:int}
+     * @return array{width:int,height:int}
      */
     private function resultDimensions(Asset $source, string $tool, array $settings): array
     {
