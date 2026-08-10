@@ -102,7 +102,7 @@ if (-not (Test-Gcloud @('tasks', 'queues', 'describe', 'altura-image-finalize', 
 }
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$WebhookSa" --role=roles/cloudtasks.enqueuer | Out-Null
 & $Gcloud iam service-accounts add-iam-policy-binding $TasksInvokerSa --project=$ProjectId --member="serviceAccount:$WebhookSa" --role=roles/iam.serviceAccountUser | Out-Null
-& $Gcloud artifacts repositories add-iam-policy-binding altura --location=$Region --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/artifactregistry.repoAdmin | Out-Null
+& $Gcloud artifacts repositories add-iam-policy-binding altura --location=$Region --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/artifactregistry.admin | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/run.admin | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/compute.viewer | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/iap.tunnelResourceAccessor | Out-Null
