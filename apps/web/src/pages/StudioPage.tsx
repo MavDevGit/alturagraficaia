@@ -119,6 +119,7 @@ export function StudioPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const previewUrlsRef = useRef<Record<string, string>>({});
+  const stagedFilesRef = useRef<Record<string, File>>({});
   const [jobIds, setJobIds] = useState<string[]>(
     restoredJobId ? [restoredJobId] : [],
   );
@@ -146,6 +147,7 @@ export function StudioPage() {
   useEffect(() => {
     revokeObjectUrls(previewUrlsRef.current);
     previewUrlsRef.current = {};
+    stagedFilesRef.current = {};
     setPreviewUrls({});
     setAssets([]);
     setJobIds(restoredJobId ? [restoredJobId] : []);
@@ -175,17 +177,25 @@ export function StudioPage() {
   const upload = useMutation({
     mutationFn: (files: File[]) =>
       settledBatch(files, async (file) => {
-        const body = new FormData();
-        body.append("file", file);
-        const asset = await api<Asset>("/uploads", { method: "POST", body });
-        return { asset, file };
+        const previewUrl = URL.createObjectURL(file);
+        try {
+          const { width, height } = await imageDimensions(previewUrl);
+          const asset = localAsset(file, width, height);
+          return { asset, file, previewUrl };
+        } catch (error) {
+          URL.revokeObjectURL(previewUrl);
+          throw error;
+        }
       }),
     onSuccess: ({ items, failed }) => {
       const nextPreviews = Object.fromEntries(
-        items.map(({ asset, file }) => [asset.id, URL.createObjectURL(file)]),
+        items.map(({ asset, previewUrl }) => [asset.id, previewUrl]),
       );
       revokeObjectUrls(previewUrlsRef.current);
       previewUrlsRef.current = nextPreviews;
+      stagedFilesRef.current = Object.fromEntries(
+        items.map(({ asset, file }) => [asset.id, file]),
+      );
       setPreviewUrls(nextPreviews);
       setAssets(items.map(({ asset }) => asset));
       setUpscaleConfigs(
@@ -209,7 +219,7 @@ export function StudioPage() {
         failed
           ? {
               severity: "warning",
-              message: `${items.length} imágenes cargadas; ${failed} no pudieron subirse.`,
+              message: `${items.length} imágenes preparadas; ${failed} no pudieron previsualizarse.`,
             }
           : null,
       );
@@ -221,14 +231,25 @@ export function StudioPage() {
 
   const process = useMutation({
     mutationFn: () =>
-      settledBatch(assets, (asset) => {
+      settledBatch(assets, async (asset) => {
+        const localId = asset.id;
+        const stagedFile = stagedFilesRef.current[localId];
+        let sourceAsset = asset;
+        if (stagedFile) {
+          const body = new FormData();
+          body.append("file", stagedFile);
+          sourceAsset = await api<Asset>("/uploads", {
+            method: "POST",
+            body,
+          });
+        }
         const expansion = tool === "outpainting" ? expansionFor(asset) : {};
         const assetUpscale = upscaleConfigs[asset.id] ?? sharedUpscaleConfig;
-        return api<Job>("/jobs", {
+        const job = await api<Job>("/jobs", {
           method: "POST",
           body: JSON.stringify({
             tool,
-            source_asset_id: asset.id,
+            source_asset_id: sourceAsset.id,
             settings: {
               upscaleMode:
                 tool === "upscaler"
@@ -256,8 +277,25 @@ export function StudioPage() {
             },
           }),
         });
+        return { job, localId, sourceAsset };
       }),
-    onSuccess: ({ items: jobs, failed }) => {
+    onSuccess: ({ items, failed }) => {
+      const jobs = items.map(({ job }) => job);
+      const nextPreviews = Object.fromEntries(
+        items.flatMap(({ localId, sourceAsset }) => {
+          const previewUrl = previewUrlsRef.current[localId];
+          return previewUrl ? [[sourceAsset.id, previewUrl]] : [];
+        }),
+      );
+      Object.entries(previewUrlsRef.current).forEach(([localId, previewUrl]) => {
+        if (!items.some((item) => item.localId === localId)) {
+          URL.revokeObjectURL(previewUrl);
+        }
+      });
+      previewUrlsRef.current = nextPreviews;
+      setPreviewUrls(nextPreviews);
+      stagedFilesRef.current = {};
+      setAssets(items.map(({ sourceAsset }) => sourceAsset));
       setJobIds(jobs.map((job) => job.id));
       if (jobs[0]) {
         window.history.replaceState(
@@ -473,6 +511,7 @@ export function StudioPage() {
   const reset = () => {
     revokeObjectUrls(previewUrlsRef.current);
     previewUrlsRef.current = {};
+    stagedFilesRef.current = {};
     setPreviewUrls({});
     setAssets([]);
     setUpscaleConfigs({});
@@ -549,7 +588,9 @@ export function StudioPage() {
                       <Box className="file-stage-icon">{toolIcon(tool)}</Box>
                       <Box className="file-stage-copy">
                         <Typography variant="caption" color="text.secondary">
-                          Imagen cargada
+                          {stagedFilesRef.current[assets[0].id]
+                            ? "Previsualización local"
+                            : "Imagen cargada"}
                         </Typography>
                         <Typography variant="h2">
                           {assets[0].width} × {assets[0].height} píxeles
@@ -578,7 +619,9 @@ export function StudioPage() {
                     <CircularProgress size={21} />
                     <Typography>
                       {upload.isPending
-                        ? "Subiendo originales…"
+                        ? "Preparando previsualización…"
+                        : process.isPending
+                          ? "Subiendo originales y creando el trabajo…"
                         : currentJob.data?.status === "processing"
                           ? "Procesando con IA…"
                           : "Generando mosaicos Deep Zoom…"}
@@ -1489,6 +1532,34 @@ function QueuePanel({
 
 function revokeObjectUrls(urls: Record<string, string>) {
   Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+}
+
+function localAsset(file: File, width: number, height: number): Asset {
+  return {
+    id: `local:${crypto.randomUUID()}`,
+    kind: "original",
+    status: "pending",
+    width,
+    height,
+    mime_type: file.type || "application/octet-stream",
+    byte_size: file.size,
+    viewer_url: "",
+    download_url: "",
+  };
+}
+
+function imageDimensions(previewUrl: string): Promise<{
+  width: number;
+  height: number;
+}> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () =>
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () =>
+      reject(new Error("No se pudo leer la imagen seleccionada."));
+    image.src = previewUrl;
+  });
 }
 
 function toolIcon(tool: Tool) {

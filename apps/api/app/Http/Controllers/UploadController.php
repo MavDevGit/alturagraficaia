@@ -11,7 +11,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use League\Flysystem\UnableToWriteFile;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Throwable;
 
 class UploadController extends Controller
@@ -60,7 +62,15 @@ class UploadController extends Controller
         try {
             $quotas->reservePyramidOperations($width, $height);
             $pyramidReserved = true;
-            $stored = Storage::disk($disk)->putFileAs(dirname($path), $file, basename($path));
+            try {
+                $stored = Storage::disk($disk)->putFileAs(dirname($path), $file, basename($path));
+            } catch (UnableToWriteFile $error) {
+                throw new ServiceUnavailableHttpException(
+                    30,
+                    'No se pudo guardar la imagen en el almacenamiento temporal. Intenta nuevamente.',
+                    $error,
+                );
+            }
             if ($stored === false) {
                 throw new RuntimeException('No se pudo almacenar la imagen original.');
             }

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use League\Flysystem\Filesystem;
 use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
+use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 use LogicException;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,7 +37,11 @@ class AppServiceProvider extends ServiceProvider
                 'projectId' => $config['project_id'],
                 'keyFilePath' => $config['key_file'] ?? null,
             ]));
-            $adapter = new GoogleCloudStorageAdapter($client->bucket($config['bucket']), $config['path_prefix'] ?? '');
+            $adapter = new GoogleCloudStorageAdapter(
+                $client->bucket($config['bucket']),
+                $config['path_prefix'] ?? '',
+                new UniformBucketLevelAccessVisibility,
+            );
 
             return new FilesystemAdapter(new Filesystem($adapter), $adapter, $config);
         });
