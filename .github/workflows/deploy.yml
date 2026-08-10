@@ -64,6 +64,9 @@ jobs:
       - name: Prepare Laravel runtime
         run: composer install --no-dev --classmap-authoritative --no-interaction
         working-directory: apps/api
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
 
       - name: Package VM release
         shell: bash
