@@ -5,7 +5,7 @@ const pixel = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
 );
-const detailedTile = readFileSync("apps/web/public/pwa-512x512.png");
+const detailedImage = readFileSync("apps/web/public/pwa-512x512.png");
 
 test("loads complete images directly and keeps wheel zoom available", async ({
   page,
@@ -20,6 +20,9 @@ test("loads complete images directly and keeps wheel zoom available", async ({
       browserErrors.push(`${response.status()} ${response.url()}`);
   });
   const imageRequests: string[] = [];
+  await page.route("https://upload.fal.test/**", (route) =>
+    route.fulfill({ status: 200 }),
+  );
   await page.route("**/api/v1/**", async (route) => {
     const url = route.request().url();
     if (url.includes("/content")) {
@@ -27,7 +30,7 @@ test("loads complete images directly and keeps wheel zoom available", async ({
       return route.fulfill({
         status: 200,
         contentType: "image/png",
-        body: url.includes("/assets/r1/") ? detailedTile : pixel,
+        body: url.includes("/assets/r1/") ? detailedImage : pixel,
       });
     }
     if (url.endsWith("/me"))
@@ -41,11 +44,18 @@ test("loads complete images directly and keeps wheel zoom available", async ({
           avatar_url: null,
         },
       });
-    if (url.endsWith("/uploads"))
+    if (url.endsWith("/uploads/initiate"))
       return route.fulfill({
         status: 201,
-        json: asset("a1", "original", 572, 1024),
+        json: {
+          asset: asset("a1", "original", 572, 1024),
+          upload_url: "https://upload.fal.test/direct/source.png",
+          method: "PUT",
+          headers: { "Content-Type": "image/png" },
+        },
       });
+    if (url.endsWith("/uploads/a1/complete"))
+      return route.fulfill({ json: asset("a1", "original", 572, 1024) });
     if (url.endsWith("/jobs") && route.request().method() === "POST")
       return route.fulfill({ status: 201, json: job("queued") });
     if (url.endsWith("/jobs/j1"))
@@ -94,7 +104,6 @@ test("loads complete images directly and keeps wheel zoom available", async ({
   await page.getByRole("button", { name: /Procesar imagen/ }).click();
   await expect(page.getByRole("button", { name: "Slider" })).toBeVisible();
   await expect.poll(() => imageRequests.length).toBeGreaterThanOrEqual(2);
-  expect(imageRequests.some((url) => url.includes("/tiles/"))).toBeFalsy();
   const stage = page.locator(".compare-stage");
   await stage.hover();
   const initialZoom = await page.locator(".zoom-readout").textContent();

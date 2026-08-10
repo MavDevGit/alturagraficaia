@@ -1,57 +1,33 @@
-# Arquitectura de producción
-
-La PWA React consume `/api/v1` y usa Firebase Authentication. Laravel valida el
-ID token, conserva usuarios, créditos, trabajos y cuotas en PostgreSQL, y guarda
-únicamente los originales en un bucket privado de Cloud Storage.
+# Arquitectura de produccion
 
 ```text
-Internet → Cloudflare Tunnel → Caddy 127.0.0.1:8082
-                              ├─ React estático
-                              └─ Laravel/PHP-FPM → PostgreSQL
-                                         │
-                                         └─ OIDC → Cloud Run worker privado → FAL
-FAL → Cloud Run webhook → Cloud Tasks/OIDC → worker → callback HMAC a Laravel
- │                                                         │
- └──────── imagen completa por CDN ────────────────────────┴→ navegador
+navegador -- JSON autenticado --> Laravel/PHP-FPM --> PostgreSQL
+    |                                  |
+    |-- archivo completo ------------> FAL
+    |                                  |-- solicitud JSON --> FAL Queue
+    |<----------- imagen CDN ----------|
+                                       ^
+                                       | webhook firmado de FAL
+
+PostgreSQL -- backup cifrado diario --> bucket privado de backups
 ```
 
-El resultado no pasa por GCS, Cloud Run ni la VM. El worker sólo coordina JSON:
-envía el original a FAL, valida el webhook y registra en Laravel la URL HTTPS,
-dimensiones y tipo MIME. El visor y la descarga siguen una redirección temporal
-del API a la CDN de FAL. No se generan pirámides Deep Zoom, mosaicos WebP ni una
-segunda copia del resultado.
+Laravel inicia una URL de carga firmada y devuelve solo sus metadatos al navegador. El navegador envia el binario directamente a FAL, sin pasar por PHP, la VM ni almacenamiento intermedio. Laravel confirma que la URL existe y crea el trabajo en FAL Queue. El webhook Ed25519 registra la URL final, dimensiones, tipo y estado de creditos de forma idempotente.
 
-La VM `e2-micro` se comparte con Gigantografías, pero cada aplicación tiene su
-propio puerto Caddy, usuario Linux, pool PHP-FPM, base de datos, worker, releases
-y archivos de entorno. No se instala Docker, Nginx, otro PostgreSQL ni otro
-`cloudflared` en la VM.
+El visor y la descarga usan la imagen completa del CDN de FAL. No se generan archivos derivados para comparar, por lo que el zoom por sectores es solo renderizado del visor en el navegador y no procesamiento del servidor.
 
-## Historial y retención
+## Historial y retencion
 
-FAL recibe `X-Fal-Object-Lifecycle-Preference` con 604.800 segundos. PostgreSQL
-conserva el trabajo y la referencia hasta la misma fecha; el proceso horario la
-marca como vencida. Esto es suficiente para el historial temporal de siete días
-y evita almacenar resultados en GCS.
+Originales y resultados solicitan siete dias de ciclo de vida en FAL. PostgreSQL conserva metadatos del trabajo y la URL hasta `expires_at`; la tarea horaria marca referencias vencidas. Una vez expirada la URL, el historial mantiene la operacion pero no el archivo.
 
-Las URL de la CDN de FAL son públicas para quien conozca el enlace mientras no
-caduquen. GCS para resultados sólo sería necesario si el producto exige alguno
-de estos requisitos: acceso privado revocable por usuario, recuperación después
-de que FAL expire el archivo, retención garantizada independiente del proveedor,
-auditoría legal o borrado inmediato verificable. Los originales sí permanecen
-privados en GCS porque son la entrada necesaria para FAL.
+## Persistencia en Google
 
-## Controles de consumo
+El unico bucket contiene backups cifrados de PostgreSQL. Sirve para recuperar usuarios, saldos, trabajos, configuracion e historial ante corrupcion o perdida de la VM. No permite recuperar una imagen que ya expiro en FAL porque esos binarios no forman parte del backup.
 
-- Una sola `e2-micro` y un único disco estándar de 30 GB: no se crea otra VM.
-- Cloud Run usa `minScale=0`, `maxScale=1`, 1 CPU y 512 MiB; no decodifica ni
-  transforma imágenes y permite concurrencia de solicitudes de coordinación.
-- Cloud Storage contiene un objeto por original y pequeños recibos JSON de
-  idempotencia. Ya no recibe resultados ni miles de objetos por pirámide.
-- Las lecturas y la transferencia GCS sólo corresponden a originales. Los bytes
-  de los resultados viajan desde FAL directamente al navegador.
-- Cloud Tasks mantiene una cola con reintentos acotados; Artifact Registry
-  conserva la imagen más reciente y Secret Manager no usa claves JSON.
-- Un presupuesto mensual de USD 5 avisa al 10 %, 50 %, 90 % y 100 %.
+## Controles
 
-Los límites aplicativos reducen el riesgo, pero no son un tope de facturación.
-FAL, dominios y consumos fuera de las cuotas gratuitas siguen siendo facturables.
+- La clave FAL permanece en Secret Manager y solo la lee la cuenta de la VM.
+- Los webhooks se validan con timestamp, firma Ed25519 y JWKS oficial cacheado.
+- La reserva/captura/reembolso de creditos es transaccional e idempotente.
+- Los limites de entrada protegen al producto; la descarga del resultado no impone limite de megapixeles ni MB.
+- Un backup cifrado se ejecuta diariamente y tiene retencion de 30 dias.

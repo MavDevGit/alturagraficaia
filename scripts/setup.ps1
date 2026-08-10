@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-foreach ($app in @('apps/api', 'apps/web', 'apps/image-service')) {
+foreach ($app in @('apps/api', 'apps/web')) {
   $target = Join-Path $app '.env'
   if (-not (Test-Path $target)) { Copy-Item (Join-Path $app '.env.example') $target }
 }
@@ -29,4 +29,4 @@ if ($LASTEXITCODE -ne 0) {
   Write-Warning 'PostgreSQL no está listo. Ejecute scripts/create-databases.ps1 y vuelva a ejecutar npm run setup.'
 }
 npm run build
-Write-Host 'Configuración finalizada. Use npm run dev para iniciar los cinco servicios.'
+Write-Host 'Configuración finalizada. Configure FAL_KEY y use npm run dev para iniciar los cuatro servicios.'

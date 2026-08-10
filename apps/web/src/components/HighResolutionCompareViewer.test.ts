@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTileSource } from "./tileSource";
+import { createFullImageSource } from "./fullImageSource";
 import type { ViewerSource } from "../api/client";
 
 const source: ViewerSource = {
@@ -14,8 +14,8 @@ const source: ViewerSource = {
 };
 
 describe("full image viewer source", () => {
-  it("opens the complete image without building a client-side pyramid", () => {
-    expect(createTileSource(source)).toEqual({
+  it("opens the complete image without building derived files", () => {
+    expect(createFullImageSource(source)).toEqual({
       type: "image",
       url: "https://api.test/assets/result/content?token=short",
       buildPyramid: false,
@@ -23,8 +23,8 @@ describe("full image viewer source", () => {
   });
 
   it("waits until the complete image is ready", () => {
-    expect(() => createTileSource({ ...source, ready: false })).toThrow(
-      "La imagen completa todavía no está disponible.",
+    expect(() => createFullImageSource({ ...source, ready: false })).toThrow(
+      "La imagen completa todavia no esta disponible.",
     );
   });
 });

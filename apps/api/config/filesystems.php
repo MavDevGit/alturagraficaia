@@ -47,16 +47,6 @@ return [
             'report' => false,
         ],
 
-        'gcs' => [
-            'driver' => 'gcs',
-            'project_id' => env('GCP_PROJECT_ID'),
-            'bucket' => env('GCS_BUCKET'),
-            'key_file' => env('GOOGLE_APPLICATION_CREDENTIALS'),
-            'path_prefix' => env('GCS_PATH_PREFIX', ''),
-            'visibility' => 'private',
-            'throw' => true,
-        ],
-
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

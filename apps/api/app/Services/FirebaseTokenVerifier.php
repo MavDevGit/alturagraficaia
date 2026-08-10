@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
-use Kreait\Firebase\Contract\Auth;
-use Kreait\Firebase\Factory;
+use Kreait\Firebase\JWT\Error\IdTokenVerificationFailed;
+use Kreait\Firebase\JWT\IdTokenVerifier;
 use RuntimeException;
 
 class FirebaseTokenVerifier
 {
-    private ?Auth $auth = null;
+    private ?IdTokenVerifier $verifier = null;
 
     /** @return array{uid:string,email:string,name:?string,picture:?string,email_verified:bool} */
     public function verify(string $token): array
@@ -20,7 +20,7 @@ class FirebaseTokenVerifier
             }
             $uid = substr($token, 6);
             if ($uid === '') {
-                throw new RuntimeException('Token local inválido.');
+                throw new RuntimeException('Token local invalido.');
             }
 
             return [
@@ -34,22 +34,28 @@ class FirebaseTokenVerifier
 
         if ($host = config('altura.firebase_emulator_host')) {
             if (app()->isProduction()) {
-                throw new RuntimeException('El emulador de Firebase no puede usarse en producción.');
+                throw new RuntimeException('El emulador de Firebase no puede usarse en produccion.');
             }
 
             return $this->verifyEmulatorToken($token, $host);
         }
 
-        $verified = $this->auth()->verifyIdToken($token);
-        $uid = (string) $verified->claims()->get('sub');
-        $firebaseUser = $this->auth()->getUser($uid);
+        try {
+            $claims = $this->tokenVerifier()->verifyIdToken($token)->payload();
+        } catch (IdTokenVerificationFailed $error) {
+            throw new InvalidFirebaseToken('El token de Firebase no es valido.', previous: $error);
+        }
+        $uid = (string) ($claims['sub'] ?? $claims['user_id'] ?? '');
+        if ($uid === '') {
+            throw new InvalidFirebaseToken('El token de Firebase no identifica un usuario.');
+        }
 
         return [
             'uid' => $uid,
-            'email' => $firebaseUser->email ?? (string) $verified->claims()->get('email', ''),
-            'name' => $firebaseUser->displayName,
-            'picture' => $firebaseUser->photoUrl,
-            'email_verified' => (bool) ($firebaseUser->emailVerified ?? false),
+            'email' => (string) ($claims['email'] ?? ''),
+            'name' => isset($claims['name']) ? (string) $claims['name'] : null,
+            'picture' => isset($claims['picture']) ? (string) $claims['picture'] : null,
+            'email_verified' => (bool) ($claims['email_verified'] ?? false),
         ];
     }
 
@@ -62,7 +68,7 @@ class FirebaseTokenVerifier
 
         $parts = explode('.', $token);
         if (count($parts) !== 3) {
-            throw new RuntimeException('Token del emulador inválido.');
+            throw new RuntimeException('Token del emulador invalido.');
         }
         $header = $this->decodeJwtPart($parts[0]);
         $claims = $this->decodeJwtPart($parts[1]);
@@ -75,7 +81,7 @@ class FirebaseTokenVerifier
             || $uid === ''
             || (int) ($claims['exp'] ?? 0) <= time()
         ) {
-            throw new RuntimeException('Las claims del emulador no son válidas.');
+            throw new RuntimeException('Las claims del emulador no son validas.');
         }
 
         $response = Http::timeout(5)
@@ -83,7 +89,7 @@ class FirebaseTokenVerifier
                 'idToken' => $token,
             ]);
         if (! $response->successful()) {
-            throw new RuntimeException('El Auth Emulator rechazó el token.');
+            throw new RuntimeException('El Auth Emulator rechazo el token.');
         }
         $firebaseUser = $response->json('users.0');
         if (! is_array($firebaseUser) || ($firebaseUser['localId'] ?? null) !== $uid) {
@@ -114,16 +120,10 @@ class FirebaseTokenVerifier
         return $data;
     }
 
-    private function auth(): Auth
+    private function tokenVerifier(): IdTokenVerifier
     {
-        if ($this->auth) {
-            return $this->auth;
-        }
-        $factory = (new Factory)->withProjectId(config('altura.firebase_project_id'));
-        if ($credentials = config('altura.firebase_credentials')) {
-            $factory = $factory->withServiceAccount($credentials);
-        }
-
-        return $this->auth = $factory->createAuth();
+        return $this->verifier ??= IdTokenVerifier::createWithProjectId(
+            (string) config('altura.firebase_project_id'),
+        );
     }
 }

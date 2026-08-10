@@ -6,9 +6,9 @@ export type FullImageSource = {
   buildPyramid: false;
 };
 
-export function createTileSource(source: ViewerSource): FullImageSource {
+export function createFullImageSource(source: ViewerSource): FullImageSource {
   if (!source.ready || !source.image_url) {
-    throw new Error("La imagen completa todavía no está disponible.");
+    throw new Error("La imagen completa todavia no esta disponible.");
   }
   return {
     type: "image",

@@ -1,30 +1,11 @@
-# Desarrollo local en Windows
+# Desarrollo local
 
-Requisitos: Node 22, PHP 8.3 o superior con `pdo_pgsql`, PostgreSQL 16, Java 21, Composer, Firebase CLI y Google Cloud CLI. Docker Desktop no se usa.
+1. Copia `.env.example` a `.env` en `apps/api` y `apps/web`.
+2. Prepara PostgreSQL con `scripts/create-databases.ps1`.
+3. Ejecuta `npm run setup`.
+4. Ejecuta `npm run fal:local:configure` y pega la clave de forma oculta.
+5. Inicia los cuatro procesos con `npm run dev`.
 
-1. Copie `.env.example` a `.env` en `apps/api`, `apps/web` y `apps/image-service`.
-2. Ejecute `powershell -File scripts/create-databases.ps1`; el script crea el rol `alturagrafica` y las bases `alturagrafica_pwa` y `alturagrafica_pwa_test` sin alterar otras bases de la instancia.
-3. Ejecute `composer install` y `php artisan key:generate` en `apps/api`.
-4. Ejecute `npm run setup` desde la raíz y `php apps/api/artisan migrate --seed`.
-5. Ejecute `npm run dev`.
+La PWA usa `http://127.0.0.1:5173`, Laravel `http://127.0.0.1:8000`, Firebase Auth Emulator el puerto `9099` y su UI el `4000`. Para recibir el webhook real, `APP_URL` debe apuntar a una URL HTTPS publica que reenvie `/api` a Laravel.
 
-El entorno local usa Firebase Auth Emulator tanto en React como en Laravel. Los
-dos lados deben conservar el mismo `FIREBASE_PROJECT_ID`, el frontend debe tener
-`VITE_USE_AUTH_EMULATOR=true` y la API debe usar `AUTH_DRIVER=firebase` con
-`FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099`. De esta forma el registro por
-correo y el flujo simulado de Google se prueban sin crear cuentas reales. El
-modo `AUTH_DRIVER=local` es solo un bypass aislado y no valida el registro.
-
-Para mantener disponibles desarrollo y produccion local en paralelo, ejecute `npm run local:start`. La API, el worker, Image Service y Firebase Emulator son compartidos por ambos frontends. Use `npm run local:status` para verificar el entorno y `npm run local:stop` para cerrarlo.
-
-Para consumir FAL real desde esta PC mediante Cloudflare Tunnel, siga
-[`local-fal.md`](local-fal.md). La configuracion predeterminada continua usando
-el proveedor simulado y no consume saldo externo.
-
-`npm test` usa SQLite en memoria para una comprobación rápida y aislada. `npm run test:api:postgres` ejecuta la misma suite contra `alturagrafica_pwa_test`; CI siempre utiliza PostgreSQL 16.
-
-Puertos: web de desarrollo `5173`, web de produccion local `4173`, API `8000`, Image Service `8787`, PostgreSQL `5432`, Firebase Auth Emulator `9099` y Emulator UI `4000`.
-
-Todos los servidores HTTP locales escuchan solamente en loopback. Cloudflare Tunnel puede conectarse a esos origenes desde la misma PC sin abrirlos a la red LAN. Antes de publicar un hostname se deben definir el dominio, las rutas publicas y la URL publica del emulador de autenticacion; no exponga el Emulator UI.
-
-Para el proveedor falso, `LOCAL_STORAGE_PATH=../api/storage/app/private` permite que Laravel y Sharp compartan objetos sin GCS. Para probar Firebase real o GCS/FAL, cambie solamente variables privadas no versionadas.
+La carga del archivo sale directamente desde el navegador hacia la URL firmada de FAL. Las pruebas automatizadas simulan tanto esa carga como los webhooks y no consumen creditos FAL.

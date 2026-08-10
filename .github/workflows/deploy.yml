@@ -2,15 +2,6 @@ name: Deploy production
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Alcance del despliegue"
-        required: true
-        type: choice
-        default: cloud-run
-        options:
-          - cloud-run
-          - all
 
 concurrency:
   group: altura-production
@@ -28,10 +19,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      APP_ENV: testing
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-      GCP_REGION: us-central1
-      MEDIA_BUCKET: ${{ vars.MEDIA_BUCKET }}
       VM_NAME: ${{ vars.VM_NAME }}
       VM_ZONE: ${{ vars.VM_ZONE }}
       APP_URL: ${{ vars.APP_URL }}
@@ -44,7 +32,7 @@ jobs:
       - uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: "8.4"
-          extensions: mbstring, intl, pdo_pgsql
+          extensions: curl, intl, mbstring, pdo_pgsql, sodium
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -57,9 +45,9 @@ jobs:
           composer --working-dir=apps/api install --no-interaction
           npm run contracts
           npm run lint
-          npm run test
-        working-directory: .
+          npm test
         env:
+          APP_ENV: testing
           DB_CONNECTION: sqlite
 
       - name: Build production PWA
@@ -69,7 +57,6 @@ jobs:
           VITE_FIREBASE_API_KEY: ${{ vars.FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_APP_ID: ${{ vars.FIREBASE_APP_ID }}
           VITE_USE_AUTH_EMULATOR: "false"
           VITE_AUTH_DRIVER: firebase
@@ -78,37 +65,17 @@ jobs:
         run: composer install --no-dev --classmap-authoritative --no-interaction
         working-directory: apps/api
 
-      - name: Build and push image worker
-        shell: bash
-        run: |
-          IMAGE="$GCP_REGION-docker.pkg.dev/$GCP_PROJECT_ID/altura/image-service:$GITHUB_SHA"
-          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
-          docker build --tag "$IMAGE" apps/image-service
-          docker push "$IMAGE"
-
-      - name: Enforce Artifact Registry retention
-        shell: bash
-        run: |
-          gcloud artifacts repositories set-cleanup-policies altura \
-            --location="$GCP_REGION" --project="$GCP_PROJECT_ID" \
-            --policy=infra/gcp/artifact-cleanup.json --quiet
-
-      - name: Deploy Cloud Run services
-        shell: pwsh
-        run: ./infra/gcp/deploy-image-service.ps1 -ProjectId $env:GCP_PROJECT_ID -BucketName $env:MEDIA_BUCKET -CallbackUrl "$env:APP_URL/api/internal/image-callback" -ImageTag $env:GITHUB_SHA
-
       - name: Package VM release
-        if: inputs.target == 'all'
         shell: bash
         run: |
           PACKAGE="/tmp/altura-$GITHUB_SHA.tar.gz"
           tar --exclude='apps/api/.env' --exclude='apps/api/storage' --exclude='apps/web/node_modules' \
-            -czf "$PACKAGE" apps/api apps/web/dist infra/caddy/alturagrafica.caddy infra/scripts/deploy.sh
+            -czf "$PACKAGE" apps/api apps/web/dist infra/caddy/alturagrafica.caddy \
+            infra/scripts/deploy.sh infra/scripts/sync-runtime-secrets.sh
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
           echo "PACKAGE_SHA=$(sha256sum "$PACKAGE" | cut -d' ' -f1)" >> "$GITHUB_ENV"
 
       - name: Deploy immutable VM release through IAP
-        if: inputs.target == 'all'
         shell: bash
         run: |
           REMOTE_PACKAGE="/tmp/altura-$GITHUB_SHA.tar.gz"

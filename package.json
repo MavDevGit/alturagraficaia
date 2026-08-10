@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/web",
-    "apps/image-service"
+    "apps/web"
   ],
   "overrides": {
     "js-yaml": "4.3.1",
@@ -21,7 +20,7 @@
   },
   "scripts": {
     "setup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1",
-    "dev": "concurrently -k -n web,image,api,queue,auth -c cyan,magenta,green,yellow,blue \"npm run dev -w apps/web -- --host 127.0.0.1\" \"npm run dev -w apps/image-service\" \"npm run api:serve\" \"npm run api:queue\" \"firebase emulators:start --only auth --project altura-grafica-ia-6faf1\"",
+    "dev": "concurrently -k -n web,api,queue,auth -c cyan,green,yellow,blue \"npm run dev -w apps/web -- --host 127.0.0.1\" \"npm run api:serve\" \"npm run api:queue\" \"firebase emulators:start --only auth --project altura-grafica-ia-6faf1\"",
     "dev:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-dev.ps1",
     "local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1",
     "local:start:quick": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-local.ps1 -SkipBuild",
@@ -35,15 +34,15 @@
     "api:serve": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/php.ps1 apps/api/artisan serve --host=127.0.0.1 --port=8000",
     "api:queue": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/php.ps1 apps/api/artisan queue:work --tries=2 --timeout=180",
     "contracts": "openapi-typescript packages/contracts/openapi.yaml -o apps/web/src/api/schema.d.ts",
-    "build": "npm run build -w apps/image-service && npm run build -w apps/web",
-    "build:local": "npm run build -w apps/image-service && npm run build:local-production -w apps/web",
-    "lint": "npm run lint -w apps/image-service && npm run lint -w apps/web",
-    "test": "npm run test -w apps/image-service && npm run test -w apps/web && npm run test:api",
+    "build": "npm run build -w apps/web",
+    "build:local": "npm run build:local-production -w apps/web",
+    "lint": "npm run lint -w apps/web",
+    "test": "npm run test -w apps/web && npm run test:api",
     "test:api": "node scripts/run-api-tests.mjs",
     "test:api:postgres": "node scripts/run-api-tests.mjs --postgres",
     "test:e2e": "playwright test",
     "test:pwa": "npm run build -w apps/web && playwright test -c playwright.pwa.config.ts",
-    "format": "prettier --write \"apps/{web,image-service}/src/**/*.{ts,tsx,css}\" \"packages/contracts/**/*.yaml\""
+    "format": "prettier --write \"apps/web/src/**/*.{ts,tsx,css}\" \"packages/contracts/**/*.yaml\""
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -64,6 +63,7 @@
     "openapi-typescript": "7.13.0",
     "prettier": "^3.6.2",
     "resolve": "^1.22.12",
+    "sharp": "^0.34.4",
     "uuid": "^11.1.1",
     "vitest": "^4.1.10"
   }

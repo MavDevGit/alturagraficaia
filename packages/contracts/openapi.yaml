@@ -8,21 +8,36 @@ servers:
 security:
   - firebaseBearer: []
 paths:
-  /uploads:
+  /uploads/initiate:
     post:
-      operationId: uploadAsset
+      operationId: initiateFalUpload
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
               type: object
-              required: [file]
+              required: [file_name, mime_type, byte_size, width, height]
               properties:
-                file: { type: string, format: binary }
+                file_name: { type: string }
+                mime_type: { type: string, enum: [image/png, image/jpeg, image/webp] }
+                byte_size: { type: integer, minimum: 1 }
+                width: { type: integer, minimum: 1 }
+                height: { type: integer, minimum: 1 }
       responses:
         "201":
-          description: Original stored
+          description: Direct FAL upload ticket
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadTicket" }
+  /uploads/{id}/complete:
+    parameters:
+      - $ref: "#/components/parameters/Id"
+    post:
+      operationId: completeFalUpload
+      responses:
+        "200":
+          description: Uploaded original ready for processing
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Asset" }
@@ -109,16 +124,23 @@ paths:
     get:
       operationId: getAssetContent
       responses:
-        "200": { description: Complete image or redirect to its temporary provider URL }
-        "302": { description: Direct redirect to GCS or FAL }
+        "302": { description: Direct redirect to FAL }
   /assets/{id}/download:
     parameters:
       - $ref: "#/components/parameters/Id"
     get:
       operationId: downloadAsset
       responses:
-        "200": { description: Complete binary }
-        "302": { description: Direct redirect to GCS or FAL }
+        "200":
+          description: Direct FAL CDN URL for browser download
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, filename]
+                properties:
+                  url: { type: string, format: uri }
+                  filename: { type: string }
   /admin/users:
     get:
       operationId: adminListUsers
@@ -252,7 +274,7 @@ components:
         status:
           {
             type: string,
-            enum: [queued, processing, tiling, completed, failed, cancelled],
+            enum: [queued, processing, completed, failed, cancelled],
           }
         credits: { type: integer }
         settings: { $ref: "#/components/schemas/JobSettings" }
@@ -284,3 +306,13 @@ components:
         ready: { type: boolean }
         token_expires_in: { type: integer }
         expires_at: { type: [string, "null"], format: date-time }
+    UploadTicket:
+      type: object
+      required: [asset, upload_url, method, headers]
+      properties:
+        asset: { $ref: "#/components/schemas/Asset" }
+        upload_url: { type: string, format: uri }
+        method: { type: string, const: PUT }
+        headers:
+          type: object
+          additionalProperties: { type: string }

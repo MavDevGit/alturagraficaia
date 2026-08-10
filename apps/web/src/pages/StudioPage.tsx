@@ -36,10 +36,12 @@ import { useParams, useSearchParams } from "react-router";
 import {
   api,
   download,
+  uploadDirect,
   type Asset,
   type Job,
   type Tool,
   type ViewerSource,
+  type UploadTicket,
 } from "../api/client";
 import { HighResolutionCompareViewer } from "../components/HighResolutionCompareViewer";
 import { OutpaintingCanvas } from "../components/OutpaintingCanvas";
@@ -238,11 +240,19 @@ export function StudioPage() {
         const stagedFile = stagedFilesRef.current[localId];
         let sourceAsset = asset;
         if (stagedFile) {
-          const body = new FormData();
-          body.append("file", stagedFile);
-          sourceAsset = await api<Asset>("/uploads", {
+          const ticket = await api<UploadTicket>("/uploads/initiate", {
             method: "POST",
-            body,
+            body: JSON.stringify({
+              file_name: stagedFile.name,
+              mime_type: stagedFile.type,
+              byte_size: stagedFile.size,
+              width: asset.width,
+              height: asset.height,
+            }),
+          });
+          await uploadDirect(ticket.upload_url, stagedFile, ticket.headers);
+          sourceAsset = await api<Asset>(`/uploads/${ticket.asset.id}/complete`, {
+            method: "POST",
           });
         }
         const expansion = tool === "outpainting" ? expansionFor(asset) : {};

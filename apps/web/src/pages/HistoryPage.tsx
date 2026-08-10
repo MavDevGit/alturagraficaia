@@ -26,7 +26,6 @@ type JobsPage = {
 const statusLabels: Record<Job["status"], string> = {
   queued: "En cola",
   processing: "Procesando",
-  tiling: "Preparando visor",
   completed: "Completado",
   failed: "Fallido",
   cancelled: "Cancelado",

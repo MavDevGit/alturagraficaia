@@ -4,12 +4,11 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Services\FirebaseTokenVerifier;
+use App\Services\InvalidFirebaseToken;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Kreait\Firebase\Exception\Auth\FailedToVerifyToken;
-use Kreait\Firebase\Exception\Auth\UserNotFound;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -26,14 +25,10 @@ class AuthenticateFirebase
 
         try {
             $identity = $this->verifier->verify($token);
-        } catch (FailedToVerifyToken $error) {
+        } catch (InvalidFirebaseToken $error) {
             report($error);
 
             return new JsonResponse(['message' => 'El token de Firebase no es válido.'], 401);
-        } catch (UserNotFound $error) {
-            report($error);
-
-            return new JsonResponse(['message' => 'La cuenta de Firebase ya no existe.'], 401);
         } catch (Throwable $error) {
             report($error);
 

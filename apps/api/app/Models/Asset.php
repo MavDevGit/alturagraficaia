@@ -11,16 +11,14 @@ class Asset extends Model
     use HasUuids;
 
     protected $fillable = [
-        'user_id', 'kind', 'status', 'storage_disk', 'storage_path', 'external_url', 'tile_prefix',
-        'original_name', 'mime_type', 'byte_size', 'quota_bytes', 'width', 'height', 'tile_size',
-        'overlap', 'max_level', 'expires_at',
+        'user_id', 'kind', 'status', 'external_url', 'original_name', 'mime_type',
+        'byte_size', 'width', 'height', 'expires_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'byte_size' => 'integer', 'quota_bytes' => 'integer', 'width' => 'integer', 'height' => 'integer',
-            'tile_size' => 'integer', 'overlap' => 'integer', 'max_level' => 'integer',
+            'byte_size' => 'integer', 'width' => 'integer', 'height' => 'integer',
             'expires_at' => 'datetime',
         ];
     }

@@ -3,7 +3,7 @@ param([switch]$SkipBuild)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $runtimeDirectory = Join-Path $root 'storage\runtime'
-$requiredPorts = @(4173, 5173, 8000, 8787, 9099, 4000)
+$requiredPorts = @(4173, 5173, 8000, 9099, 4000)
 
 Set-Location $root
 New-Item -ItemType Directory -Force -Path $runtimeDirectory | Out-Null
@@ -43,7 +43,6 @@ $pending = @{
   'Web desarrollo' = 'http://127.0.0.1:5173/'
   'Web produccion local' = 'http://127.0.0.1:4173/'
   'API Laravel' = 'http://127.0.0.1:8000/up'
-  'Image Service' = 'http://127.0.0.1:8787/health'
   'Firebase Emulator UI' = 'http://127.0.0.1:4000/'
 }
 $deadline = (Get-Date).AddSeconds(120)

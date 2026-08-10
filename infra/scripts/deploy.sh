@@ -34,7 +34,8 @@ echo "$EXPECTED_SHA  $ARCHIVE" | sha256sum --check --status || { echo "Checksum 
 install -d -o altura -g caddy -m 0750 "$TARGET"
 tar -xzf "$ARCHIVE" -C "$TARGET"
 if [[ ! -f "$TARGET/apps/api/artisan" || ! -f "$TARGET/apps/web/dist/index.html" || ! -f "$TARGET/apps/api/vendor/autoload.php" \
-  || ! -f "$TARGET/infra/caddy/alturagrafica.caddy" || ! -f "$TARGET/infra/scripts/deploy.sh" ]]; then
+  || ! -f "$TARGET/infra/caddy/alturagrafica.caddy" || ! -f "$TARGET/infra/scripts/deploy.sh" \
+  || ! -f "$TARGET/infra/scripts/sync-runtime-secrets.sh" ]]; then
   echo "El paquete no contiene los artefactos de producción." >&2
   exit 1
 fi
@@ -50,6 +51,8 @@ ln -s "$SHARED_ROOT/storage" "$TARGET/apps/api/storage"
 ln -s "$SHARED_ROOT/.env" "$TARGET/apps/api/.env"
 chown -R altura:caddy "$TARGET"
 chmod 0640 "$SHARED_ROOT/.env"
+
+/bin/bash "$TARGET/infra/scripts/sync-runtime-secrets.sh"
 
 cd "$TARGET/apps/api"
 runuser -u altura -- /usr/bin/php8.3 artisan config:cache
@@ -78,6 +81,7 @@ mv -Tf "$CURRENT_LINK.new" "$CURRENT_LINK"
 systemctl reload php8.3-fpm
 systemctl restart altura-worker.service
 install -o root -g root -m 0750 "$TARGET/infra/scripts/deploy.sh" /usr/local/sbin/altura-deploy
+install -o root -g root -m 0750 "$TARGET/infra/scripts/sync-runtime-secrets.sh" /usr/local/sbin/altura-sync-runtime-secrets
 
 if ! curl -fsS --max-time 20 http://127.0.0.1:8082/up >/dev/null; then
   if [[ -n "$PREVIOUS" && "$PREVIOUS" == "$RELEASE_ROOT"/* && -d "$PREVIOUS" ]]; then

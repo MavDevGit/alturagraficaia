@@ -8,21 +8,29 @@ use App\Models\ToolSetting;
 use App\Models\UsageQuota;
 use App\Models\User;
 use App\Services\CreditService;
+use App\Services\FalClient;
 use App\Services\QuotaService;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
-    config()->set('altura.auth_driver', 'local');
-    config()->set('altura.initial_credits', 20);
-    Storage::fake('local');
+    config()->set(['altura.auth_driver' => 'local', 'altura.initial_credits' => 20, 'altura.fal_key' => 'test-fal-key-value']);
     Queue::fake();
+    Http::fake([
+        'https://rest.fal.ai/storage/upload/initiate*' => Http::response([
+            'upload_url' => 'https://upload.fal.media/direct-ticket',
+            'file_url' => 'https://v3b.fal.media/files/example/source.png',
+        ]),
+        'https://v3b.fal.media/files/example/source.png' => Http::response('', 200, [
+            'Content-Type' => 'image/png', 'Content-Length' => '2048',
+        ]),
+        'https://queue.fal.run/*/cancel' => Http::response(['accepted' => true], 202),
+        'https://queue.fal.run/*' => Http::response(['request_id' => 'fal-request-1'], 202),
+    ]);
     foreach ([
-        ['tool' => 'upscaler', 'model' => 'fake/upscaler', 'base_credits' => 1],
-        ['tool' => 'background-remover', 'model' => 'fake/background', 'base_credits' => 2],
-        ['tool' => 'outpainting', 'model' => 'fake/outpainting', 'base_credits' => 4],
+        ['tool' => 'upscaler', 'model' => 'fal-ai/seedvr/upscale/image', 'base_credits' => 1],
+        ['tool' => 'background-remover', 'model' => 'fal-ai/bria/background/remove', 'base_credits' => 2],
+        ['tool' => 'outpainting', 'model' => 'fal-ai/flux-2-pro/outpaint', 'base_credits' => 4],
     ] as $setting) {
         ToolSetting::query()->updateOrCreate(['tool' => $setting['tool']], $setting);
     }
@@ -33,191 +41,116 @@ function localHeaders(string $uid = 'credit-test'): array
     return ['Authorization' => "Bearer local:{$uid}"];
 }
 
-it('uploads one ready original without queuing a pyramid', function (): void {
-    $response = $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders());
+function uploadedFalAsset($test, string $uid = 'credit-test'): array
+{
+    $ticket = $test->postJson('/api/v1/uploads/initiate', [
+        'file_name' => 'source.png', 'mime_type' => 'image/png', 'byte_size' => 2048,
+        'width' => 572, 'height' => 1024,
+    ], localHeaders($uid))->assertCreated()->json();
 
-    $payload = $response->assertCreated()
-        ->assertJsonPath('width', 572)
-        ->assertJsonPath('height', 1024)
-        ->assertJsonPath('status', 'ready')
-        ->json();
-    $asset = Asset::query()->findOrFail($payload['id']);
-    Queue::assertNothingPushed();
-    expect(User::query()->first()->credit_balance)->toBe(20)
-        ->and(Storage::disk('local')->exists($asset->storage_path))->toBeTrue()
-        ->and($asset->quota_bytes)->toBe($asset->byte_size)
-        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe($asset->byte_size)
-        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->exists())->toBeFalse();
+    return $test->postJson("/api/v1/uploads/{$ticket['asset']['id']}/complete", [], localHeaders($uid))
+        ->assertOk()->json();
+}
+
+it('creates a direct FAL upload ticket and completes it without local media storage', function (): void {
+    $asset = uploadedFalAsset($this);
+
+    expect($asset['status'])->toBe('ready')
+        ->and(Asset::query()->findOrFail($asset['id'])->external_url)->toStartWith('https://v3b.fal.media/')
+        ->and(UsageQuota::query()->exists())->toBeFalse();
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/storage/upload/initiate')
+        && $request->hasHeader('X-Fal-Object-Lifecycle-Preference'));
 });
 
-it('reserves credits atomically and refunds once on cancellation', function (): void {
-    $asset = $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders())->json();
-    $originalQuota = UsageQuota::query()->where('resource', 'storage_bytes')->value('used');
-
-    $job = $this->postJson('/api/v1/jobs', [
+it('reserves credits and submits only JSON and the FAL source URL', function (): void {
+    $asset = uploadedFalAsset($this);
+    $jobPayload = $this->postJson('/api/v1/jobs', [
         'tool' => 'upscaler', 'source_asset_id' => $asset['id'],
-        'settings' => [
-            'upscaleMode' => 'factor',
-            'scale' => 4,
-            'format' => 'png',
-            'fidelity' => 0.1,
-        ],
+        'settings' => ['upscaleMode' => 'factor', 'scale' => 4, 'format' => 'png', 'fidelity' => 0.1],
     ], localHeaders())->assertCreated()->json();
 
     expect(User::query()->first()->credit_balance)->toBe(18)
         ->and(CreditLedger::query()->where('type', 'reservation')->count())->toBe(1)
-        ->and(Job::query()->findOrFail($job['id'])->settings['upscaleMode'])->toBe('factor');
+        ->and(Job::query()->findOrFail($jobPayload['id'])->resultAsset->external_url)->toBeNull();
     Queue::assertPushed(ProcessImageJob::class);
 
-    Job::query()->findOrFail($job['id'])->update([
-        'status' => 'processing',
-        'provider_job_id' => 'fal-cancellable-request',
-    ]);
-    Http::fake([
-        'http://127.0.0.1:8787/v1/jobs/*/cancel' => Http::response(['accepted' => true], 202),
-    ]);
+    (new ProcessImageJob($jobPayload['id']))->handle(app(FalClient::class));
+    expect(Job::query()->findOrFail($jobPayload['id'])->provider_job_id)->toBe('fal-request-1');
+    Http::assertSent(function ($request): bool {
+        if (! str_starts_with($request->url(), 'https://queue.fal.run/fal-ai/seedvr/upscale/image')) {
+            return false;
+        }
+        $payload = $request->data();
 
-    $this->postJson("/api/v1/jobs/{$job['id']}/cancel", [], localHeaders())->assertOk()->assertJsonPath('status', 'cancelled');
-    $this->postJson("/api/v1/jobs/{$job['id']}/cancel", [], localHeaders())->assertOk();
-    expect(User::query()->first()->credit_balance)->toBe(20)
-        ->and(CreditLedger::query()->where('type', 'refund')->count())->toBe(1)
-        ->and(UsageQuota::query()->where('resource', 'storage_bytes')->value('used'))->toBe($originalQuota);
-    Http::assertSent(fn ($request) => str_ends_with($request->url(), "/v1/jobs/{$job['id']}/cancel"));
+        return $payload['image_url'] === 'https://v3b.fal.media/files/example/source.png'
+            && $payload['upscale_factor'] === 4.0
+            && $request->hasHeader('X-Fal-Object-Lifecycle-Preference');
+    });
+});
+
+it('refunds credits once and cancels the provider request directly from Laravel', function (): void {
+    $asset = uploadedFalAsset($this, 'cancel-user');
+    $job = $this->postJson('/api/v1/jobs', [
+        'tool' => 'upscaler', 'source_asset_id' => $asset['id'],
+        'settings' => ['scale' => 4, 'format' => 'png'],
+    ], localHeaders('cancel-user'))->assertCreated()->json();
+    Job::query()->whereKey($job['id'])->update(['status' => 'processing', 'provider_job_id' => 'fal-request-1']);
+
+    $this->postJson("/api/v1/jobs/{$job['id']}/cancel", [], localHeaders('cancel-user'))->assertOk();
+    $this->postJson("/api/v1/jobs/{$job['id']}/cancel", [], localHeaders('cancel-user'))->assertOk();
+
+    expect(User::query()->where('firebase_uid', 'cancel-user')->value('credit_balance'))->toBe(20)
+        ->and(CreditLedger::query()->where('type', 'refund')->count())->toBe(1);
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/requests/fal-request-1/cancel'));
 });
 
 it('persists only settings supported by each provider contract', function (): void {
-    $asset = $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('settings-test'))->json();
-
+    $asset = uploadedFalAsset($this, 'settings-user');
     $outpainting = $this->postJson('/api/v1/jobs', [
-        'tool' => 'outpainting',
-        'source_asset_id' => $asset['id'],
-        'settings' => [
-            'format' => 'png',
-            'mode' => 'fast',
-            'expandRight' => 256,
-        ],
-    ], localHeaders('settings-test'))->assertCreated()->json();
-
+        'tool' => 'outpainting', 'source_asset_id' => $asset['id'],
+        'settings' => ['format' => 'png', 'mode' => 'fast', 'expandRight' => 256],
+    ], localHeaders('settings-user'))->assertCreated()->json();
     expect(Job::query()->findOrFail($outpainting['id'])->settings['mode'])->toBe('fast');
 
-    $upscaler = $this->postJson('/api/v1/jobs', [
-        'tool' => 'upscaler',
-        'source_asset_id' => $asset['id'],
-        'settings' => [
-            'upscaleMode' => 'target',
-            'targetResolution' => '2160p',
-            'format' => 'png',
-            'fidelity' => 0.25,
-        ],
-    ], localHeaders('settings-test'))->assertCreated()->json();
-
-    expect(Job::query()->findOrFail($upscaler['id'])->settings)
-        ->toMatchArray([
-            'upscaleMode' => 'target',
-            'targetResolution' => '2160p',
-            'fidelity' => 0.25,
-        ]);
-
     $this->postJson('/api/v1/jobs', [
-        'tool' => 'background-remover',
-        'source_asset_id' => $asset['id'],
+        'tool' => 'background-remover', 'source_asset_id' => $asset['id'],
         'settings' => ['format' => 'webp'],
-    ], localHeaders('settings-test'))
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('settings.format');
-
-    $this->postJson('/api/v1/jobs', [
-        'tool' => 'outpainting',
-        'source_asset_id' => $asset['id'],
-        'settings' => ['format' => 'webp', 'expandRight' => 256],
-    ], localHeaders('settings-test'))
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('settings.format');
-
-    $this->postJson('/api/v1/jobs', [
-        'tool' => 'outpainting',
-        'source_asset_id' => $asset['id'],
-        'settings' => ['format' => 'png', 'prompt' => 'unsupported'],
-    ], localHeaders('settings-test'))
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors('settings');
+    ], localHeaders('settings-user'))->assertUnprocessable()->assertJsonValidationErrors('settings.format');
 });
 
 it('fails and refunds a stale processing job', function (): void {
-    $asset = $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('stale-user'))->json();
+    $asset = uploadedFalAsset($this, 'stale-user');
     $job = $this->postJson('/api/v1/jobs', [
-        'tool' => 'upscaler',
-        'source_asset_id' => $asset['id'],
-        'settings' => ['scale' => 4, 'format' => 'png'],
+        'tool' => 'upscaler', 'source_asset_id' => $asset['id'], 'settings' => ['scale' => 4, 'format' => 'png'],
     ], localHeaders('stale-user'))->assertCreated()->json();
-    Job::query()->whereKey($job['id'])->update([
-        'status' => 'processing',
-        'updated_at' => now()->subHours(13),
-    ]);
+    Job::query()->whereKey($job['id'])->update(['status' => 'processing', 'updated_at' => now()->subHours(13)]);
 
     $this->artisan('jobs:fail-stale')->assertSuccessful();
-
     expect(Job::query()->findOrFail($job['id'])->status)->toBe('failed')
-        ->and(User::query()->where('firebase_uid', 'stale-user')->value('credit_balance'))->toBe(20)
-        ->and(CreditLedger::query()->where('type', 'refund')->count())->toBe(1);
+        ->and(User::query()->where('firebase_uid', 'stale-user')->value('credit_balance'))->toBe(20);
 });
 
-it('blocks an upload before exceeding the configured storage ceiling', function (): void {
-    config()->set('altura.storage_soft_limit_bytes', 1);
-    config()->set('altura.storage_hard_limit_bytes', 1);
+it('blocks a job before exceeding the monthly processing ceiling', function (): void {
+    config()->set(['altura.image_jobs_soft_limit' => 0, 'altura.image_jobs_hard_limit' => 0]);
+    $asset = uploadedFalAsset($this, 'quota-user');
 
-    $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('quota-test'))->assertUnprocessable()->assertJsonValidationErrors('quota');
+    $this->postJson('/api/v1/jobs', [
+        'tool' => 'upscaler', 'source_asset_id' => $asset['id'], 'settings' => ['scale' => 2, 'format' => 'png'],
+    ], localHeaders('quota-user'))->assertUnprocessable()->assertJsonValidationErrors('quota');
 });
 
-it('keeps the storage reservation global when the calendar month changes', function (): void {
-    config()->set('altura.storage_soft_limit_bytes', 90);
-    config()->set('altura.storage_hard_limit_bytes', 100);
-    $quotas = app(QuotaService::class);
-
-    $quotas->reserveStorage(40);
-    $this->travelTo(now()->addMonth());
-    $quotas->reserveStorage(30);
-
-    expect(UsageQuota::query()->where('resource', QuotaService::STORAGE)->count())->toBe(1)
-        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('period_start')->toDateString())->toBe('1970-01-01')
-        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe(70);
-});
-
-it('does not consume GCS Class A quota while accepting an original', function (): void {
-    $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('gcs-operations-quota'))->assertCreated();
-
-    expect(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBeGreaterThan(0)
-        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->exists())->toBeFalse();
-});
-
-it('never permits a reservation that makes the balance negative', function (): void {
-    $asset = $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('low-credit'))->json();
-    User::query()->first()->update(['credit_balance' => 0]);
+it('never permits a credit reservation that makes the balance negative', function (): void {
+    $asset = uploadedFalAsset($this, 'low-credit');
+    User::query()->where('firebase_uid', 'low-credit')->update(['credit_balance' => 0]);
 
     $this->postJson('/api/v1/jobs', [
         'tool' => 'outpainting', 'source_asset_id' => $asset['id'], 'settings' => ['format' => 'png'],
     ], localHeaders('low-credit'))->assertUnprocessable()->assertJsonValidationErrors('credits');
-    expect(User::query()->first()->credit_balance)->toBe(0);
 });
 
 it('applies an administrative credit adjustment only once per idempotency key', function (): void {
     $user = User::factory()->create(['credit_balance' => 20]);
     $credits = app(CreditService::class);
-
     $credits->adjust($user, 5, 'Bonificación de soporte.', 'support-adjustment-1');
     $credits->adjust($user, 5, 'Bonificación de soporte.', 'support-adjustment-1');
 

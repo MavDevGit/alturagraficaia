@@ -3,19 +3,14 @@ set -euo pipefail
 
 if [[ ${EUID} -ne 0 ]]; then echo 'Ejecute como root.' >&2; exit 1; fi
 : "${PROJECT_ID:?PROJECT_ID es obligatorio}"
-: "${MEDIA_BUCKET:?MEDIA_BUCKET es obligatorio}"
 : "${BACKUP_BUCKET:?BACKUP_BUCKET es obligatorio}"
 : "${APP_URL:?APP_URL es obligatorio}"
-: "${IMAGE_SERVICE_URL:?IMAGE_SERVICE_URL es obligatorio}"
-if [[ "$APP_URL" != https://* || "$IMAGE_SERVICE_URL" != https://* ]]; then
-  echo 'Las URLs de producción deben usar HTTPS.' >&2
-  exit 1
-fi
+if [[ "$APP_URL" != https://* ]]; then echo 'APP_URL debe usar HTTPS.' >&2; exit 1; fi
 
 SHARED_ROOT=/var/www/alturagrafica/shared
 ENV_FILE="$SHARED_ROOT/.env"
 if [[ -e "$ENV_FILE" ]]; then
-  echo "$ENV_FILE ya existe; no se sobrescribirá una instalación activa." >&2
+  echo "$ENV_FILE ya existe; no se sobrescribira una instalacion activa." >&2
   exit 1
 fi
 
@@ -32,11 +27,10 @@ fetch_secret() {
   printf '%s' "$response" | php8.3 -r '$j=json_decode(stream_get_contents(STDIN), true); echo base64_decode($j["payload"]["data"] ?? "", true) ?: "";'
 }
 
-INTERNAL_KEY=$(fetch_secret image-internal-key)
-CALLBACK_SECRET=$(fetch_secret image-callback-secret)
+FAL_KEY=$(fetch_secret fal-key)
 BACKUP_KEY=$(fetch_secret backup-encryption-key)
-if [[ ${#INTERNAL_KEY} -lt 32 || ${#CALLBACK_SECRET} -lt 32 || ${#BACKUP_KEY} -lt 32 ]]; then
-  echo 'Secret Manager no devolvió secretos de producción válidos.' >&2
+if [[ ${#FAL_KEY} -lt 16 || ${#BACKUP_KEY} -lt 32 ]]; then
+  echo 'Secret Manager no devolvio secretos de produccion validos.' >&2
   exit 1
 fi
 
@@ -53,11 +47,12 @@ BACKUP_TEMP=$(mktemp /etc/altura/backup-env.XXXXXX)
 cleanup() {
   [[ "$ENV_TEMP" == /etc/altura/app-env.* ]] && rm -f -- "$ENV_TEMP"
   [[ "$BACKUP_TEMP" == /etc/altura/backup-env.* ]] && rm -f -- "$BACKUP_TEMP"
+  FAL_KEY=; BACKUP_KEY=; DB_PASSWORD=; APP_KEY=
 }
 trap cleanup EXIT
 
 cat >"$ENV_TEMP" <<EOF
-APP_NAME="Altura Gráfica IA"
+APP_NAME="Altura Grafica IA"
 APP_ENV=production
 APP_KEY=$APP_KEY
 APP_DEBUG=false
@@ -83,16 +78,9 @@ DB_QUEUE_TABLE=queue_jobs
 DB_QUEUE_RETRY_AFTER=1000
 AUTH_DRIVER=firebase
 FIREBASE_PROJECT_ID=altura-grafica-ia-6faf1
-FIREBASE_CREDENTIALS=
 FIREBASE_AUTH_EMULATOR_HOST=
-FILESYSTEM_DISK=gcs
-GCP_PROJECT_ID=$PROJECT_ID
-GCS_BUCKET=$MEDIA_BUCKET
-GOOGLE_APPLICATION_CREDENTIALS=
-IMAGE_SERVICE_URL=$IMAGE_SERVICE_URL
-IMAGE_SERVICE_AUDIENCE=$IMAGE_SERVICE_URL
-IMAGE_SERVICE_KEY=$INTERNAL_KEY
-IMAGE_CALLBACK_SECRET=$CALLBACK_SECRET
+FILESYSTEM_DISK=local
+FAL_KEY=$FAL_KEY
 ASSET_TTL_DAYS=7
 ASSET_VIEWER_TOKEN_TTL=14400
 INITIAL_CREDITS=20
@@ -101,8 +89,6 @@ MAX_INPUT_SIDE=20000
 MAX_INPUT_PIXELS=100000000
 MAX_OUTPUT_SIDE=32768
 MAX_OUTPUT_PIXELS=400000000
-STORAGE_SOFT_LIMIT_BYTES=3758096384
-STORAGE_HARD_LIMIT_BYTES=4294967296
 IMAGE_JOBS_SOFT_LIMIT=80
 IMAGE_JOBS_HARD_LIMIT=100
 JOB_STALE_MINUTES=720
@@ -123,10 +109,4 @@ BACKUP_DATABASES="gigantografia_prod alturagrafica_pwa"
 EOF
 install -o root -g root -m 0600 "$BACKUP_TEMP" /etc/altura/backup.env
 
-ACCESS_TOKEN=
-INTERNAL_KEY=
-CALLBACK_SECRET=
-BACKUP_KEY=
-DB_PASSWORD=
-APP_KEY=
-echo 'Base, entorno y backup de Altura configurados sin exponer secretos.'
+echo 'Base, FAL y backup cifrado configurados sin exponer secretos.'

@@ -1,18 +1,14 @@
 param(
   [Parameter(Mandatory=$true)][string]$ProjectId,
-  [Parameter(Mandatory=$true)][string]$MediaBucketName,
   [Parameter(Mandatory=$true)][string]$BackupBucketName,
-  [Parameter(Mandatory=$true)][ValidatePattern('^https://')][string]$AppUrl,
   [string]$FirebaseProjectId = "altura-grafica-ia-6faf1"
 )
+
 $ErrorActionPreference = 'Stop'
 $GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
 if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
 $Gcloud = $GcloudCommand.Source
 $Region = 'us-central1'
-$WorkerSa = "altura-image-worker@$ProjectId.iam.gserviceaccount.com"
-$WebhookSa = "altura-image-webhook@$ProjectId.iam.gserviceaccount.com"
-$TasksInvokerSa = "altura-tasks-invoker@$ProjectId.iam.gserviceaccount.com"
 $VmSa = "shared-vm-runtime@$ProjectId.iam.gserviceaccount.com"
 $DeploySa = "github-altura-deploy@$ProjectId.iam.gserviceaccount.com"
 
@@ -40,91 +36,36 @@ function Ensure-Secret([string]$Name) {
   }
 }
 
-& $Gcloud config set project $ProjectId
-Assert-Gcloud 'seleccionar el proyecto'
-& $Gcloud services enable run.googleapis.com storage.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com monitoring.googleapis.com billingbudgets.googleapis.com iamcredentials.googleapis.com sts.googleapis.com cloudtasks.googleapis.com identitytoolkit.googleapis.com --project $ProjectId
-Assert-Gcloud 'habilitar APIs'
-
-if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$MediaBucketName"))) {
-  & $Gcloud storage buckets create "gs://$MediaBucketName" --project=$ProjectId --location=$Region --uniform-bucket-level-access
-  Assert-Gcloud 'crear bucket de medios'
-}
-$CorsFile = Join-Path ([IO.Path]::GetTempPath()) "altura-media-cors-$([guid]::NewGuid()).json"
-$Cors = @(
-  @{
-    origin = @($AppUrl.TrimEnd('/'))
-    method = @('GET', 'HEAD')
-    responseHeader = @('Content-Type', 'Content-Disposition', 'Content-Length', 'ETag', 'Accept-Ranges', 'Content-Range')
-    maxAgeSeconds = 3600
-  }
-) | ConvertTo-Json -Depth 4
-try {
-  [IO.File]::WriteAllText($CorsFile, $Cors, (New-Object Text.UTF8Encoding($false)))
-  & $Gcloud storage buckets update "gs://$MediaBucketName" --lifecycle-file=infra/gcp/storage-lifecycle.json --cors-file=$CorsFile --public-access-prevention --clear-soft-delete
-  Assert-Gcloud 'asegurar bucket efímero de medios y su CORS privado'
-} finally {
-  if (Test-Path -LiteralPath $CorsFile) { Remove-Item -LiteralPath $CorsFile -Force }
-}
+& $Gcloud services enable compute.googleapis.com iap.googleapis.com storage.googleapis.com secretmanager.googleapis.com monitoring.googleapis.com billingbudgets.googleapis.com iamcredentials.googleapis.com sts.googleapis.com identitytoolkit.googleapis.com --project $ProjectId
+Assert-Gcloud 'habilitar APIs necesarias'
 
 if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$BackupBucketName"))) {
   & $Gcloud storage buckets create "gs://$BackupBucketName" --project=$ProjectId --location=$Region --uniform-bucket-level-access --soft-delete-duration=7d
   Assert-Gcloud 'crear bucket de backups'
 }
 & $Gcloud storage buckets update "gs://$BackupBucketName" --lifecycle-file=infra/gcp/backup-lifecycle.json --public-access-prevention --soft-delete-duration=7d
-Assert-Gcloud 'asegurar bucket de backups'
+Assert-Gcloud 'asegurar bucket privado de backups'
 
-if (-not (Test-Gcloud @('artifacts', 'repositories', 'describe', 'altura', "--location=$Region", "--project=$ProjectId"))) {
-  & $Gcloud artifacts repositories create altura --repository-format=docker --location=$Region --project=$ProjectId
-  Assert-Gcloud 'crear Artifact Registry'
-}
-& $Gcloud artifacts repositories set-cleanup-policies altura --location=$Region --project=$ProjectId --policy=infra/gcp/artifact-cleanup.json --quiet
-Assert-Gcloud 'limitar retención de imágenes de contenedor'
-
-Ensure-ServiceAccount 'altura-image-worker' 'Altura image worker'
-Ensure-ServiceAccount 'altura-image-webhook' 'Altura FAL webhook receiver'
-Ensure-ServiceAccount 'altura-tasks-invoker' 'Altura Cloud Tasks invoker'
 Ensure-ServiceAccount 'shared-vm-runtime' 'Shared production VM runtime'
 Ensure-ServiceAccount 'github-altura-deploy' 'GitHub Altura deploy'
+Ensure-Secret 'fal-key'
+Ensure-Secret 'backup-encryption-key'
 
-foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret', 'backup-encryption-key')) { Ensure-Secret $secret }
-
-& $Gcloud storage buckets add-iam-policy-binding "gs://$MediaBucketName" --member="serviceAccount:$WorkerSa" --role=roles/storage.objectAdmin | Out-Null
-& $Gcloud storage buckets add-iam-policy-binding "gs://$MediaBucketName" --member="serviceAccount:$WebhookSa" --role=roles/storage.objectViewer | Out-Null
-& $Gcloud storage buckets add-iam-policy-binding "gs://$MediaBucketName" --member="serviceAccount:$VmSa" --role=roles/storage.objectAdmin | Out-Null
 & $Gcloud storage buckets add-iam-policy-binding "gs://$BackupBucketName" --member="serviceAccount:$VmSa" --role=roles/storage.objectAdmin | Out-Null
-Assert-Gcloud 'autorizar buckets'
-
-foreach ($secret in @('fal-key', 'image-internal-key', 'image-callback-secret')) {
-  & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$WorkerSa" --role=roles/secretmanager.secretAccessor | Out-Null
-  & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/secretmanager.viewer | Out-Null
+foreach ($secret in @('fal-key', 'backup-encryption-key')) {
+  & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$VmSa" --role=roles/secretmanager.secretAccessor | Out-Null
 }
-& $Gcloud secrets add-iam-policy-binding backup-encryption-key --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/secretmanager.viewer | Out-Null
-& $Gcloud secrets add-iam-policy-binding image-internal-key --project=$ProjectId --member="serviceAccount:$WebhookSa" --role=roles/secretmanager.secretAccessor | Out-Null
-Assert-Gcloud 'autorizar secretos por recurso'
-
-& $Gcloud iam service-accounts add-iam-policy-binding $WorkerSa --project=$ProjectId --member="serviceAccount:$WorkerSa" --role=roles/iam.serviceAccountTokenCreator | Out-Null
-& $Gcloud iam service-accounts add-iam-policy-binding $VmSa --project=$ProjectId --member="serviceAccount:$VmSa" --role=roles/iam.serviceAccountTokenCreator | Out-Null
-Assert-Gcloud 'autorizar firma de URLs sin claves descargadas'
+Assert-Gcloud 'autorizar backup y secretos del runtime'
 
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$VmSa" --role=roles/logging.logWriter | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$VmSa" --role=roles/monitoring.metricWriter | Out-Null
 & $Gcloud projects add-iam-policy-binding $FirebaseProjectId --member="serviceAccount:$VmSa" --role=roles/firebaseauth.viewer | Out-Null
 Assert-Gcloud 'autorizar runtime de VM'
 
-if (-not (Test-Gcloud @('tasks', 'queues', 'describe', 'altura-image-finalize', "--location=$Region", "--project=$ProjectId"))) {
-  & $Gcloud tasks queues create altura-image-finalize --location=$Region --project=$ProjectId --max-concurrent-dispatches=1 --max-dispatches-per-second=1 --max-attempts=5 --max-retry-duration=7200s --min-backoff=10s --max-backoff=300s
-  Assert-Gcloud 'crear cola de finalización'
-}
-& $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$WebhookSa" --role=roles/cloudtasks.enqueuer | Out-Null
-& $Gcloud iam service-accounts add-iam-policy-binding $TasksInvokerSa --project=$ProjectId --member="serviceAccount:$WebhookSa" --role=roles/iam.serviceAccountUser | Out-Null
-& $Gcloud artifacts repositories add-iam-policy-binding altura --location=$Region --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/artifactregistry.admin | Out-Null
-& $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/run.admin | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/compute.viewer | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/iap.tunnelResourceAccessor | Out-Null
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$DeploySa" --role=roles/compute.osAdminLogin | Out-Null
-foreach ($runtimeSa in @($WorkerSa, $WebhookSa, $VmSa)) {
-  & $Gcloud iam service-accounts add-iam-policy-binding $runtimeSa --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/iam.serviceAccountUser | Out-Null
-}
-Assert-Gcloud 'autorizar despliegue GitHub con mínimo privilegio'
+& $Gcloud iam service-accounts add-iam-policy-binding $VmSa --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/iam.serviceAccountUser | Out-Null
+Assert-Gcloud 'autorizar despliegue de VM desde GitHub'
 
-Write-Host 'Infraestructura base preparada. Añada una sola versión activa a cada secreto antes de desplegar.'
+Write-Host 'Infraestructura minima preparada: VM, FAL, PostgreSQL y backup cifrado.'

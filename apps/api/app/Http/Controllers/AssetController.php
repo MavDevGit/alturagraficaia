@@ -4,10 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Services\AssetAccessToken;
-use App\Services\QuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 class AssetController extends Controller
@@ -23,58 +21,40 @@ class AssetController extends Controller
             'width' => $asset->width,
             'height' => $asset->height,
             'mime_type' => $asset->mime_type,
-            'ready' => $asset->status === 'ready' && ($asset->external_url !== null || $asset->storage_path !== ''),
+            'ready' => $asset->status === 'ready' && $asset->external_url !== null,
             'image_url' => route('assets.content', ['asset' => $asset, 'token' => $token]),
             'token_expires_in' => $ttl,
             'expires_at' => $asset->expires_at?->toIso8601String(),
         ]);
     }
 
-    public function content(Request $request, Asset $asset, AssetAccessToken $tokens, QuotaService $quotas): Response
+    public function content(Request $request, Asset $asset, AssetAccessToken $tokens): Response
     {
         abort_unless($tokens->valid($asset, $request->query('token')), 401);
         abort_unless($asset->status === 'ready', 404);
-        if ($asset->external_url) {
-            return redirect()->away($asset->external_url, 302, ['Cache-Control' => 'private, no-store']);
-        }
+        abort_unless($asset->external_url, 404);
 
-        $disk = Storage::disk($asset->storage_disk);
-        if ($asset->storage_disk === 'gcs') {
-            $quotas->reserveGcsRead(max(1, $asset->byte_size));
-
-            return redirect()->away($disk->temporaryUrl($asset->storage_path, now()->addSeconds(config('altura.gcs_signed_url_ttl_seconds'))), 302, [
-                'Cache-Control' => 'private, no-store',
-            ]);
-        }
-
-        abort_unless($disk->exists($asset->storage_path), 404);
-
-        return $disk->response($asset->storage_path, null, [
-            'Content-Type' => $asset->mime_type,
-            'Cache-Control' => 'private, max-age=900',
-        ]);
+        return redirect()->away($asset->external_url, 302, ['Cache-Control' => 'private, no-store']);
     }
 
-    public function download(Request $request, Asset $asset, QuotaService $quotas): Response
+    public function download(Request $request, Asset $asset): JsonResponse
     {
         $this->authorizeAsset($request, $asset);
         abort_unless($asset->status === 'ready', 404);
-        if ($asset->external_url) {
-            return redirect()->away($asset->external_url, 302, ['Cache-Control' => 'private, no-store']);
-        }
-        $name = $asset->kind === 'result' ? 'altura-grafica-ia-'.$asset->id.'.'.pathinfo($asset->storage_path, PATHINFO_EXTENSION) : $asset->original_name;
+        abort_unless($asset->external_url, 404);
+        $extension = match ($asset->mime_type) {
+            'image/jpeg' => 'jpg',
+            'image/webp' => 'webp',
+            default => 'png',
+        };
+        $filename = $asset->kind === 'result'
+            ? "altura-grafica-ia-{$asset->id}.{$extension}"
+            : ($asset->original_name ?: "altura-{$asset->id}.{$extension}");
 
-        $disk = Storage::disk($asset->storage_disk);
-        if ($asset->storage_disk === 'gcs') {
-            $quotas->reserveGcsRead(max(1, $asset->byte_size));
-            $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename((string) $name)) ?: 'download';
-
-            return redirect()->away($disk->temporaryUrl($asset->storage_path, now()->addSeconds(config('altura.gcs_signed_url_ttl_seconds')), [
-                'gcp_signing_options' => ['responseDisposition' => 'attachment; filename="'.$safeName.'"'],
-            ]), 302, ['Cache-Control' => 'private, no-store']);
-        }
-
-        return $disk->download($asset->storage_path, $name);
+        return response()->json([
+            'url' => $asset->external_url,
+            'filename' => $filename,
+        ], headers: ['Cache-Control' => 'private, no-store']);
     }
 
     private function authorizeAsset(Request $request, Asset $asset): void

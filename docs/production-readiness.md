@@ -1,156 +1,43 @@
-# Operación de producción
+# Produccion
 
-Este despliegue está diseñado para convivir con Gigantografías en la misma VM
-sin duplicar servicios base y sin guardar credenciales en Git.
-
-## 1. Preparar GCP
-
-Desde la raíz del repositorio:
+## Infraestructura inicial
 
 ```powershell
 ./infra/gcp/bootstrap.ps1 `
   -ProjectId PROJECT_ID `
-  -MediaBucketName MEDIA_BUCKET `
-  -BackupBucketName BACKUP_BUCKET `
-  -AppUrl https://app.example.com `
-  -FirebaseProjectId FIREBASE_PROJECT_ID
-```
+  -BackupBucketName BACKUP_BUCKET
 
-Configure también el presupuesto del proyecto. Los avisos llegan a los usuarios
-con roles de facturación de la cuenta; el presupuesto alerta, pero no apaga
-servicios automáticamente:
-
-```powershell
-./infra/gcp/configure-budget.ps1 `
+./infra/gcp/initialize-secrets.ps1 `
   -ProjectId PROJECT_ID `
-  -BillingAccountId BILLING_ACCOUNT_ID `
-  -BudgetAmountUsd 5
+  -SourceEnvPath apps/api/.env
+
+./infra/gcp/setup-github-oidc.ps1 -ProjectId PROJECT_ID
 ```
 
-El script habilita únicamente las APIs necesarias, crea los dos buckets
-privados, configura CORS de solo lectura para que la PWA pueda mostrar y
-descargar objetos firmados, y prepara Artifact Registry, Cloud Tasks, cinco
-cuentas de servicio con permisos acotados y los recursos de Secret Manager. Después añada una versión a
-`fal-key`, `image-internal-key`, `image-callback-secret` y
-`backup-encryption-key` usando entrada estándar
-o `infra/gcp/set-fal-key.ps1`; nunca incluya valores en argumentos o commits.
+El bootstrap crea solo las identidades de VM/despliegue, los secretos `fal-key` y `backup-encryption-key`, y un bucket privado con retencion para backups. No existe almacenamiento de medios en Google.
 
-Configure la federación exacta del repositorio, sin claves persistentes:
+## Primera configuracion de VM
 
-```powershell
-./infra/gcp/setup-github-oidc.ps1 `
-  -ProjectId PROJECT_ID `
-  -GitHubRepository MavDevGit/alturagraficaia
-```
-
-Guarde su salida y los valores Firebase públicos como variables del environment
-`production` de GitHub. El workflow inicial es manual para permitir preparar
-Cloud Run antes de modificar la VM.
-
-En Firebase Authentication habilite **Correo/contraseña** y **Google**, y añada
-el hostname final a los dominios autorizados. El proyecto configurado en las
-variables `VITE_FIREBASE_*` debe ser exactamente el mismo que
-`FIREBASE_PROJECT_ID` en la API.
-
-## 2. Desplegar Cloud Run
-
-Ejecute el workflow **Deploy production** con `target=cloud-run`. Este compila,
-prueba y publica una imagen inmutable, despliega `altura-image-worker` privado y
-`altura-image-webhook` público, y configura OIDC de Cloud Tasks. La API Laravel
-debe usar la URL del worker tanto en `IMAGE_SERVICE_URL` como en
-`IMAGE_SERVICE_AUDIENCE`; la clave interna sigue siendo una segunda defensa.
-
-## 3. Preparar la VM compartida
-
-Antes de cambiarla, confirme que Caddy, PostgreSQL, el túnel y Gigantografías
-están saludables. Copie solamente `infra/` y ejecute como root:
+Ejecuta `infra/scripts/provision-vm.sh` una vez. Luego configura el entorno:
 
 ```bash
-bash infra/scripts/provision-vm.sh
-read -rsp 'Contraseña PostgreSQL: ' ALTURA_DB_PASSWORD
-export ALTURA_DB_PASSWORD
-/usr/local/sbin/altura-init-postgres
-unset ALTURA_DB_PASSWORD
+sudo PROJECT_ID=PROJECT_ID \
+  BACKUP_BUCKET=BACKUP_BUCKET \
+  APP_URL=https://alturagrafica.mavdev.cloud \
+  /usr/local/sbin/altura-configure-production
 ```
 
-El provisionador añade PHP 8.3, un pool con un solo hijo y límite de memoria, un
-fragmento Caddy en `127.0.0.1:8082`, unidades systemd y scripts de despliegue y
-backup. No altera el pool PHP, Caddy virtual host ni base de datos existentes de
-Gigantografías.
+La cuenta `shared-vm-runtime` necesita `secretAccessor` sobre ambos secretos y `storage.objectAdmin` solamente sobre el bucket de backups.
 
-Cree `/var/www/alturagrafica/shared/.env` a partir de
-`apps/api/.env.production.example`, con propietario `root:altura` y modo `0640`.
-Use secretos aleatorios distintos, la URL real y la cuenta de servicio adjunta a
-la VM; no descargue credenciales JSON. Configure `/etc/altura/backup.env` y una
-clave aleatoria en `/etc/altura/backup.key` con modo `0600`, conservando una copia
-fuera de la VM.
+## Despliegue
 
-Si se migra a otro proyecto Firebase, editar el script del repositorio no
-actualiza el `.env` compartido que ya existe. Cambie explícitamente
-`FIREBASE_PROJECT_ID` en `/var/www/alturagrafica/shared/.env`, deje vacío
-`FIREBASE_AUTH_EMULATOR_HOST` y reconstruya la caché de configuración:
+El workflow `Deploy production` instala y prueba dependencias, compila la PWA, crea un release inmutable y lo envia por IAP a la VM. El script remoto sincroniza `FAL_KEY` desde Secret Manager antes de cachear Laravel, migra PostgreSQL, cambia el enlace atomico y revierte si falla `/up`.
 
-```bash
-sudoedit /var/www/alturagrafica/shared/.env
-sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan config:clear
-sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan config:cache
-sudo systemctl reload php8.3-fpm
-```
+Variables del environment `production`: `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SERVICE_ACCOUNT`, `VM_NAME`, `VM_ZONE`, `APP_URL` y la configuracion publica de Firebase usada por Vite.
 
-## 4. Primer release y tráfico
+## Operacion
 
-Ejecute nuevamente **Deploy production** con `target=all`. El workflow entrega
-el paquete por IAP, valida SHA-256, hace backup previo a migraciones, cambia el
-symlink de forma atómica, comprueba `/up` y revierte si falla. Después habilite:
-
-```bash
-systemctl enable --now altura-worker altura-scheduler.timer altura-backup.timer
-```
-
-Solo cuando `curl http://127.0.0.1:8082/up` y el sitio existente estén sanos,
-añada al túnel compartido la ruta:
-
-```text
-alturagrafica.mavdev.cloud → http://127.0.0.1:8082
-```
-
-`target=cloud-run` no publica cambios de React ni Laravel en la VM; para una
-corrección de autenticación se requiere `target=all`.
-
-Elimine la ruta del túnel local únicamente después de validar HTTPS, login y un
-trabajo completo. Configure `alturagrafica.mavdev.cloud` como dominio autorizado
-en Firebase Authentication.
-
-Después de que el primer usuario inicie sesión una vez, habilite el primer
-administrador de forma explícita:
-
-```bash
-sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan \
-  users:promote-admin correo@empresa.com
-```
-
-A partir de entonces, el centro de administración permite conceder o quitar el
-rol a otros usuarios. La API impide degradar al último administrador para evitar
-un bloqueo total del panel.
-
-## 5. Verificación obligatoria
-
-```bash
-curl --fail http://127.0.0.1:8082/up
-sudo -u altura php8.3 /var/www/alturagrafica/current/apps/api/artisan about
-systemctl --no-pager --full status caddy php8.3-fpm postgresql \
-  altura-worker altura-scheduler.timer altura-backup.timer cloudflared
-```
-
-Además, valide login por correo y Google, rechazo de `/admin` a usuarios
-normales, un procesamiento real, devolución de créditos ante fallo, descarga y
-resultados FAL por URL temporal, backup cifrado y restauración en una base aislada.
-Compruebe métricas de memoria/swap, almacenamiento y cuotas tras la primera carga.
-
-## Controles de lanzamiento
-
-- Presupuesto mensual verificado y destinatarios IAM de facturación activos.
-- Firebase: dominios autorizados y proveedores de login verificados.
-- FAL: clave rotada, webhook real y saldo/coste entendido.
-- GitHub: protección de `main`, revisión de Dependabot y environment protegido.
-- GCP: VM sin IP pública, firewall web cerrado y cuentas sin roles amplios.
+- Comprueba `systemctl status altura-worker altura-scheduler.timer altura-backup.timer`.
+- Comprueba el ultimo backup cifrado y prueba una restauracion periodicamente.
+- Rota FAL con `infra/gcp/set-fal-key.ps1`; el siguiente despliegue sincroniza la version nueva.
+- Revisa creditos, errores de trabajos y antiguedad del secreto desde el panel administrativo.

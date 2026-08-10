@@ -2,17 +2,10 @@
 
 namespace App\Providers;
 
-use Google\Cloud\Storage\StorageClient;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
-use League\Flysystem\Config;
-use League\Flysystem\Filesystem;
-use League\Flysystem\GoogleCloudStorage\GoogleCloudStorageAdapter;
-use League\Flysystem\GoogleCloudStorage\UniformBucketLevelAccessVisibility;
 use LogicException;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,32 +26,6 @@ class AppServiceProvider extends ServiceProvider
         $this->configureRateLimits();
         $this->guardProductionConfiguration();
 
-        Storage::extend('gcs', function ($app, array $config): FilesystemAdapter {
-            $client = new StorageClient(array_filter([
-                'projectId' => $config['project_id'],
-                'keyFilePath' => $config['key_file'] ?? null,
-            ]));
-            $adapter = new GoogleCloudStorageAdapter(
-                $client->bucket($config['bucket']),
-                $config['path_prefix'] ?? '',
-                new UniformBucketLevelAccessVisibility,
-            );
-
-            $filesystem = new FilesystemAdapter(new Filesystem($adapter), $adapter, $config);
-
-            // Laravel expects adapters to expose getTemporaryUrl(), while the
-            // Flysystem GCS adapter implements TemporaryUrlGenerator::temporaryUrl().
-            // Register the bridge explicitly so tiles and downloads can be signed.
-            $filesystem->buildTemporaryUrlsUsing(
-                fn (string $path, $expiration, array $options): string => $adapter->temporaryUrl(
-                    $path,
-                    $expiration,
-                    new Config($options),
-                ),
-            );
-
-            return $filesystem;
-        });
     }
 
     private function configureRateLimits(): void
@@ -74,7 +41,7 @@ class AppServiceProvider extends ServiceProvider
             ->by($key($request))->response($response));
         RateLimiter::for('admin', fn (Request $request) => Limit::perMinute(120)
             ->by($key($request))->response($response));
-        RateLimiter::for('image-callback', fn (Request $request) => Limit::perMinute(180)
+        RateLimiter::for('fal-webhook', fn (Request $request) => Limit::perMinute(180)
             ->by((string) $request->ip())->response($response));
     }
 
@@ -103,20 +70,9 @@ class AppServiceProvider extends ServiceProvider
         if (config('altura.auth_driver') !== 'firebase' || config('altura.firebase_emulator_host')) {
             $failures[] = 'Firebase real debe ser el proveedor de autenticación';
         }
-        if (config('filesystems.default') !== 'gcs' || ! config('filesystems.disks.gcs.bucket')) {
-            $failures[] = 'FILESYSTEM_DISK=gcs y GCS_BUCKET son obligatorios';
-        }
-        if (! str_starts_with((string) config('altura.image_service_url'), 'https://')) {
-            $failures[] = 'IMAGE_SERVICE_URL debe usar HTTPS';
-        }
-        if (! str_starts_with((string) config('altura.image_service_audience'), 'https://')) {
-            $failures[] = 'IMAGE_SERVICE_AUDIENCE debe identificar el servicio privado de Cloud Run';
-        }
-        foreach (['image_service_key', 'callback_secret'] as $secret) {
-            $value = (string) config("altura.{$secret}");
-            if (strlen($value) < 32 || str_contains($value, 'change-me')) {
-                $failures[] = "{$secret} debe contener un secreto de al menos 32 caracteres";
-            }
+        $falKey = (string) config('altura.fal_key');
+        if (strlen($falKey) < 16 || str_contains($falKey, 'change-me')) {
+            $failures[] = 'FAL_KEY debe estar configurada únicamente en el servidor';
         }
 
         if ($failures !== []) {

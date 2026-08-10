@@ -4,8 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Job;
 use App\Services\CreditService;
-use App\Services\ImageServiceClient;
-use App\Services\QuotaService;
+use App\Services\FalClient;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Throwable;
@@ -20,11 +19,11 @@ class ProcessImageJob implements ShouldQueue
 
     public function __construct(public readonly string $jobId) {}
 
-    public function handle(ImageServiceClient $images): void
+    public function handle(FalClient $fal): void
     {
         $job = Job::query()->findOrFail($this->jobId);
         if ($job->status === 'cancelled' && $job->provider_job_id) {
-            $images->cancel($job);
+            $fal->cancel($job);
 
             return;
         }
@@ -35,11 +34,11 @@ class ProcessImageJob implements ShouldQueue
             $job->update(['status' => 'processing', 'started_at' => now()]);
             $job->events()->create(['type' => 'processing', 'created_at' => now()]);
         }
-        $providerRequestId = $images->submit($job);
+        $providerRequestId = $fal->submit($job);
         $job->refresh();
         $job->update(['provider_job_id' => $providerRequestId]);
         if ($job->status === 'cancelled') {
-            $images->cancel($job);
+            $fal->cancel($job);
         }
     }
 
@@ -51,8 +50,6 @@ class ProcessImageJob implements ShouldQueue
         }
         $job->update(['status' => 'failed', 'error' => $error->getMessage(), 'finished_at' => now()]);
         app(CreditService::class)->refund($job, 'El servicio de imágenes no pudo iniciar el trabajo.');
-        if ($job->resultAsset) {
-            app(QuotaService::class)->releaseAsset($job->resultAsset);
-        }
+        $job->resultAsset?->update(['status' => 'failed']);
     }
 }

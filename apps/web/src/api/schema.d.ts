@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/uploads": {
+    "/uploads/initiate": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,7 +13,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["uploadAsset"];
+        post: operations["initiateFalUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/uploads/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["completeFalUpload"];
         delete?: never;
         options?: never;
         head?: never;
@@ -287,7 +305,7 @@ export interface components {
             id: string;
             tool: string;
             /** @enum {string} */
-            status: "queued" | "processing" | "tiling" | "completed" | "failed" | "cancelled";
+            status: "queued" | "processing" | "completed" | "failed" | "cancelled";
             credits: number;
             settings?: components["schemas"]["JobSettings"];
             error?: string | null;
@@ -307,6 +325,16 @@ export interface components {
             /** Format: date-time */
             expires_at: string | null;
         };
+        UploadTicket: {
+            asset: components["schemas"]["Asset"];
+            /** Format: uri */
+            upload_url: string;
+            /** @constant */
+            method: "PUT";
+            headers: {
+                [key: string]: string;
+            };
+        };
     };
     responses: never;
     parameters: {
@@ -318,7 +346,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    uploadAsset: {
+    initiateFalUpload: {
         parameters: {
             query?: never;
             header?: never;
@@ -327,15 +355,41 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    file: string;
+                "application/json": {
+                    file_name: string;
+                    /** @enum {string} */
+                    mime_type: "image/png" | "image/jpeg" | "image/webp";
+                    byte_size: number;
+                    width: number;
+                    height: number;
                 };
             };
         };
         responses: {
-            /** @description Original stored */
+            /** @description Direct FAL upload ticket */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadTicket"];
+                };
+            };
+        };
+    };
+    completeFalUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Uploaded original ready for processing */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -479,14 +533,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Complete image or redirect to its temporary provider URL */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Direct redirect to GCS or FAL */
+            /** @description Direct redirect to FAL */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -506,19 +553,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Complete binary */
+            /** @description Direct FAL CDN URL for browser download */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
-            };
-            /** @description Direct redirect to GCS or FAL */
-            302: {
-                headers: {
-                    [name: string]: unknown;
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        url: string;
+                        filename: string;
+                    };
                 };
-                content?: never;
             };
         };
     };

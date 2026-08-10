@@ -1225,7 +1225,7 @@ select {
   border-left: 1px solid #fff;
 }
 
-.tile-warning {
+.image-warning {
   position: absolute;
   z-index: 8;
   left: 50%;

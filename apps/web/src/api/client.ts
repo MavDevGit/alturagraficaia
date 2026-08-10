@@ -81,27 +81,68 @@ function firstValidationMessage(details: unknown): string | undefined {
 }
 
 export async function download(path: string, filename: string): Promise<void> {
-  const token = await tokenProvider();
-  let response: Response;
+  const direct = await api<{ url: string; filename?: string }>(path);
+  if (!direct.url.startsWith("https://")) {
+    throw new ApiError(0, "El resultado no tiene una URL de descarga segura.");
+  }
+
+  const picker = (
+    window as typeof window & {
+      showSaveFilePicker?: (options: {
+        suggestedName: string;
+      }) => Promise<{ createWritable: () => Promise<WritableStream> }>;
+    }
+  ).showSaveFilePicker;
+  if (!picker) {
+    const anchor = document.createElement("a");
+    anchor.href = direct.url;
+    anchor.download = direct.filename ?? filename;
+    anchor.target = "_blank";
+    anchor.rel = "noopener";
+    anchor.click();
+    return;
+  }
+
   try {
-    response = await fetch(`${API_URL}${path}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const handle = await picker({ suggestedName: direct.filename ?? filename });
+    const response = await fetch(direct.url);
+    if (!response.ok || !response.body) {
+      throw new ApiError(response.status, "FAL no pudo entregar el archivo.");
+    }
+    const writable = await handle.createWritable();
+    await response.body.pipeTo(writable);
   } catch (reason) {
+    if (reason instanceof DOMException && reason.name === "AbortError") return;
+    if (reason instanceof ApiError) throw reason;
     throw new ApiError(
       0,
       "No se pudo descargar el archivo. Compruebe su conexión.",
       reason,
     );
   }
-  if (!response.ok)
-    throw new ApiError(response.status, "No se pudo descargar el archivo.");
-  const url = URL.createObjectURL(await response.blob());
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function uploadDirect(
+  url: string,
+  file: File,
+  headers: Record<string, string>,
+): Promise<void> {
+  if (!url.startsWith("https://")) {
+    throw new ApiError(0, "FAL no devolvió una URL de carga segura.");
+  }
+  let response: Response;
+  try {
+    response = await fetch(url, { method: "PUT", headers, body: file });
+  } catch (reason) {
+    throw new ApiError(
+      0,
+      "No se pudo enviar la imagen directamente a FAL.",
+      reason,
+    );
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, "FAL no pudo recibir la imagen completa.");
+  }
 }
 
 export type Asset = {
@@ -121,7 +162,7 @@ export type Job = {
   id: string;
   tool: Tool;
   status:
-    "queued" | "processing" | "tiling" | "completed" | "failed" | "cancelled";
+    "queued" | "processing" | "completed" | "failed" | "cancelled";
   credits: number;
   settings: Record<string, unknown>;
   error: string | null;
@@ -141,6 +182,13 @@ export type ViewerSource = {
   image_url: string;
   token_expires_in: number;
   expires_at: string | null;
+};
+
+export type UploadTicket = {
+  asset: Asset;
+  upload_url: string;
+  method: "PUT";
+  headers: Record<string, string>;
 };
 
 export type CurrentUser = {

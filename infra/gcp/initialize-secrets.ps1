@@ -2,6 +2,7 @@ param(
   [Parameter(Mandatory=$true)][string]$ProjectId,
   [Parameter(Mandatory=$true)][string]$SourceEnvPath
 )
+
 $ErrorActionPreference = 'Stop'
 $GcloudCommand = Get-Command gcloud.cmd -ErrorAction SilentlyContinue
 if (-not $GcloudCommand) { $GcloudCommand = Get-Command gcloud -ErrorAction Stop }
@@ -22,7 +23,7 @@ function Add-SecretValue([string]$Name, [string]$Value) {
   try {
     [IO.File]::WriteAllText($temporaryFile, $Value, (New-Object Text.UTF8Encoding($false)))
     & $Gcloud secrets versions add $Name --project=$ProjectId --data-file=$temporaryFile | Out-Null
-    Assert-Gcloud "agregar versión de $Name"
+    Assert-Gcloud "agregar version de $Name"
   } finally {
     $Value = $null
     if (Test-Path -LiteralPath $temporaryFile) {
@@ -35,7 +36,7 @@ function Add-SecretValue([string]$Name, [string]$Value) {
 
 function New-RandomSecret {
   $bytes = New-Object byte[] 48
-  $random = New-Object Security.Cryptography.RNGCryptoServiceProvider
+  $random = [Security.Cryptography.RandomNumberGenerator]::Create()
   try {
     $random.GetBytes($bytes)
     return [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
@@ -49,16 +50,14 @@ if (-not (Test-Path -LiteralPath $SourceEnvPath -PathType Leaf)) { throw 'No exi
 $falLine = Get-Content -LiteralPath $SourceEnvPath | Where-Object { $_ -match '^FAL_KEY=' } | Select-Object -First 1
 if (-not $falLine) { throw 'El archivo local no contiene FAL_KEY.' }
 $falValue = $falLine.Substring(8).Trim().Trim('"').Trim("'")
-if ($falValue.Length -lt 32 -or $falValue -match '\s') { throw 'La FAL_KEY local no tiene un formato seguro.' }
+if ($falValue.Length -lt 16 -or $falValue -match '\s') { throw 'La FAL_KEY local no tiene un formato valido.' }
 
 if (-not (Has-EnabledVersion 'fal-key')) { Add-SecretValue 'fal-key' $falValue }
 $falValue = $null
-foreach ($secretName in @('image-internal-key', 'image-callback-secret', 'backup-encryption-key')) {
-  if (-not (Has-EnabledVersion $secretName)) {
-    $generated = New-RandomSecret
-    Add-SecretValue $secretName $generated
-    $generated = $null
-  }
+if (-not (Has-EnabledVersion 'backup-encryption-key')) {
+  $generated = New-RandomSecret
+  Add-SecretValue 'backup-encryption-key' $generated
+  $generated = $null
 }
 
-Write-Output 'Los cuatro secretos tienen al menos una versión habilitada.'
+Write-Output 'FAL y el cifrado de backups tienen una version habilitada.'

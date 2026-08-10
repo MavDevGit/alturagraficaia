@@ -18,7 +18,7 @@ import ZoomInRounded from "@mui/icons-material/ZoomInRounded";
 import ZoomOutRounded from "@mui/icons-material/ZoomOutRounded";
 import VerifiedRounded from "@mui/icons-material/VerifiedRounded";
 import type { ViewerSource } from "../api/client";
-import { createTileSource } from "./tileSource";
+import { createFullImageSource } from "./fullImageSource";
 
 type Mode = "slider" | "side";
 
@@ -122,12 +122,12 @@ export function HighResolutionCompareViewer({
     const beforeViewer = OpenSeadragon({
       ...shared,
       element: beforeNode.current,
-      tileSources: createTileSource(before) as OpenSeadragon.TileSourceOptions,
+      tileSources: createFullImageSource(before) as OpenSeadragon.TileSourceOptions,
     });
     const afterViewer = OpenSeadragon({
       ...shared,
       element: afterNode.current,
-      tileSources: createTileSource(after) as OpenSeadragon.TileSourceOptions,
+      tileSources: createFullImageSource(after) as OpenSeadragon.TileSourceOptions,
       mouseNavEnabled: mode === "side",
     });
     viewers.current = { before: beforeViewer, after: afterViewer };
@@ -301,7 +301,7 @@ export function HighResolutionCompareViewer({
           </Box>
         )}
         {(!before.ready || !after.ready) && (
-          <Box className="tile-warning">
+          <Box className="image-warning">
             <Typography variant="caption">
               Preparando la imagen completa…
             </Typography>

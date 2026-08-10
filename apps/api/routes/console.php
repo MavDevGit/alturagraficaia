@@ -4,11 +4,9 @@ use App\Models\Asset;
 use App\Models\Job;
 use App\Models\User;
 use App\Services\CreditService;
-use App\Services\QuotaService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
-use Illuminate\Support\Facades\Storage;
 
 Artisan::command('users:import-firestore {--source= : JSON exportado de Firestore} {--dry-run}', function (): int {
     $source = $this->option('source');
@@ -68,28 +66,21 @@ Artisan::command('users:promote-admin {identity? : Correo o Firebase UID} {--fir
 Artisan::command('assets:purge-expired', function (): void {
     Asset::query()->where('expires_at', '<=', now())->where('status', '!=', 'expired')->chunkById(100, function ($assets): void {
         foreach ($assets as $asset) {
-            if (! $asset->external_url) {
-                Storage::disk($asset->storage_disk)->delete($asset->storage_path);
-                if ($asset->tile_prefix) {
-                    Storage::disk($asset->storage_disk)->deleteDirectory($asset->tile_prefix);
-                }
-            }
-            app(QuotaService::class)->releaseAsset($asset);
             $asset->update(['status' => 'expired']);
         }
     });
-})->purpose('Elimina originales vencidos y expira referencias temporales de resultados');
+})->purpose('Expira las referencias temporales de medios alojados por FAL');
 
 Artisan::command('jobs:fail-stale', function (): void {
     $cutoff = now()->subMinutes(config('altura.job_stale_minutes'));
     Job::query()
-        ->whereIn('status', ['queued', 'processing', 'tiling'])
+        ->whereIn('status', ['queued', 'processing'])
         ->where('updated_at', '<=', $cutoff)
         ->pluck('id')
         ->each(function (string $jobId) use ($cutoff): void {
             DB::transaction(function () use ($jobId, $cutoff): void {
                 $job = Job::query()->with('resultAsset')->lockForUpdate()->find($jobId);
-                if (! $job || ! in_array($job->status, ['queued', 'processing', 'tiling'], true) || $job->updated_at->isAfter($cutoff)) {
+                if (! $job || ! in_array($job->status, ['queued', 'processing'], true) || $job->updated_at->isAfter($cutoff)) {
                     return;
                 }
                 $job->update([
@@ -99,7 +90,6 @@ Artisan::command('jobs:fail-stale', function (): void {
                 ]);
                 app(CreditService::class)->refund($job, 'El trabajo excediÃ³ el tiempo mÃ¡ximo de finalizaciÃ³n.');
                 if ($job->resultAsset) {
-                    app(QuotaService::class)->releaseAsset($job->resultAsset);
                     $job->resultAsset->update(['status' => 'failed']);
                 }
                 $job->events()->create(['type' => 'failed_stale', 'created_at' => now()]);

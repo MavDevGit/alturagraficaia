@@ -7,7 +7,7 @@ use App\Models\Asset;
 use App\Models\Job;
 use App\Models\ToolSetting;
 use App\Services\CreditService;
-use App\Services\ImageServiceClient;
+use App\Services\FalClient;
 use App\Services\QuotaService;
 use App\Support\ApiPresenter;
 use App\Support\UpscaleGeometry;
@@ -75,9 +75,8 @@ class JobController extends Controller
             $resultId = (string) Str::uuid();
             $result = Asset::query()->create([
                 'id' => $resultId, 'user_id' => $request->user()->id, 'kind' => 'result',
-                'status' => 'pending', 'storage_disk' => 'fal',
-                'storage_path' => "external/{$resultId}",
-                'mime_type' => $mime, 'byte_size' => 0, 'quota_bytes' => 0,
+                'status' => 'pending', 'external_url' => null,
+                'mime_type' => $mime, 'byte_size' => 0,
                 'width' => $outputDimensions['width'], 'height' => $outputDimensions['height'],
                 'expires_at' => now()->addDays(config('altura.asset_ttl_days')),
             ]);
@@ -103,18 +102,16 @@ class JobController extends Controller
         return response()->json(ApiPresenter::job($job));
     }
 
-    public function cancel(Request $request, Job $job, CreditService $credits, QuotaService $quotas, ImageServiceClient $images): JsonResponse
+    public function cancel(Request $request, Job $job, CreditService $credits, FalClient $fal): JsonResponse
     {
         abort_unless($job->user_id === $request->user()->id || $request->user()->isAdmin(), 404);
         $shouldCancelProvider = false;
-        DB::transaction(function () use ($job, $credits, $quotas, &$shouldCancelProvider): void {
+        DB::transaction(function () use ($job, $credits, &$shouldCancelProvider): void {
             $locked = Job::query()->with('resultAsset')->lockForUpdate()->findOrFail($job->id);
             if (in_array($locked->status, ['queued', 'processing'], true)) {
                 $locked->update(['status' => 'cancelled', 'finished_at' => now()]);
                 $credits->refund($locked, 'Trabajo cancelado por el usuario.');
-                if ($locked->resultAsset) {
-                    $quotas->releaseAsset($locked->resultAsset);
-                }
+                $locked->resultAsset?->update(['status' => 'failed']);
                 $locked->events()->create(['type' => 'cancelled', 'created_at' => now()]);
                 $shouldCancelProvider = (bool) $locked->provider_job_id;
             }
@@ -123,7 +120,7 @@ class JobController extends Controller
         $fresh = $job->fresh();
         if ($shouldCancelProvider && $fresh) {
             try {
-                $images->cancel($fresh);
+                $fal->cancel($fresh);
             } catch (Throwable $error) {
                 report($error);
                 $fresh->events()->create([
