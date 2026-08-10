@@ -224,6 +224,8 @@ export function StudioPage() {
           : null,
       );
     },
+    onError: (reason) =>
+      setNotice({ severity: "error", message: errorMessage(reason) }),
   });
 
   const expansionFor = (asset: Asset) =>
@@ -318,6 +320,8 @@ export function StudioPage() {
             : null,
       );
     },
+    onError: (reason) =>
+      setNotice({ severity: "error", message: errorMessage(reason) }),
   });
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -538,13 +542,21 @@ export function StudioPage() {
   ) : (
     <Button
       variant="contained"
-      startIcon={toolIcon(tool)}
+      startIcon={
+        process.isPending ? (
+          <CircularProgress size={18} color="inherit" />
+        ) : (
+          toolIcon(tool)
+        )
+      }
       disabled={!canProcess}
       onClick={() => process.mutate()}
     >
-      {assets.length > 1
-        ? `${toolMeta[tool].action} (${assets.length})`
-        : toolMeta[tool].action}
+      {process.isPending
+        ? "Subiendo y preparando…"
+        : assets.length > 1
+          ? `${toolMeta[tool].action} (${assets.length})`
+          : toolMeta[tool].action}
     </Button>
   );
 

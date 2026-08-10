@@ -46,9 +46,12 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const payload = await response
       .json()
       .catch(() => ({ message: "Error de comunicación." }));
+    const validationMessage = firstValidationMessage(payload.errors);
     const error = new ApiError(
       response.status,
-      payload.message ?? "La operación no pudo completarse.",
+      validationMessage ??
+        payload.message ??
+        "La operación no pudo completarse.",
       payload.errors,
     );
     if (response.status === 401)
@@ -60,6 +63,21 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw error;
   }
   return response.json() as Promise<T>;
+}
+
+function firstValidationMessage(details: unknown): string | undefined {
+  if (!details || typeof details !== "object") return undefined;
+  for (const value of Object.values(details)) {
+    if (typeof value === "string" && value) return value;
+    if (Array.isArray(value)) {
+      const message = value.find(
+        (candidate): candidate is string =>
+          typeof candidate === "string" && candidate.length > 0,
+      );
+      if (message) return message;
+    }
+  }
+  return undefined;
 }
 
 export async function download(path: string, filename: string): Promise<void> {

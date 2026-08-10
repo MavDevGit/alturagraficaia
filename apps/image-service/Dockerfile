@@ -7,7 +7,7 @@ COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-bookworm-slim
-ENV NODE_ENV=production PORT=8080
+ENV NODE_ENV=production PORT=8080 LOCAL_STORAGE_PATH=/tmp/altura-image-service
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules

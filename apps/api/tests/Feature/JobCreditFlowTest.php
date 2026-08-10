@@ -2,6 +2,7 @@
 
 use App\Jobs\BuildAssetPyramidJob;
 use App\Jobs\ProcessImageJob;
+use App\Models\Asset;
 use App\Models\CreditLedger;
 use App\Models\Job;
 use App\Models\ToolSetting;
@@ -24,7 +25,7 @@ beforeEach(function (): void {
         ['tool' => 'background-remover', 'model' => 'fake/background', 'base_credits' => 2],
         ['tool' => 'outpainting', 'model' => 'fake/outpainting', 'base_credits' => 4],
     ] as $setting) {
-        ToolSetting::query()->create($setting);
+        ToolSetting::query()->updateOrCreate(['tool' => $setting['tool']], $setting);
     }
 });
 
@@ -41,6 +42,25 @@ it('uploads an original and queues its deep zoom pyramid', function (): void {
     $response->assertCreated()->assertJsonPath('width', 572)->assertJsonPath('height', 1024);
     Queue::assertPushed(BuildAssetPyramidJob::class);
     expect(User::query()->first()->credit_balance)->toBe(20);
+});
+
+it('releases storage and operation reservations when an original pyramid fails', function (): void {
+    $assetData = $this->post('/api/v1/uploads', [
+        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
+    ], localHeaders('failed-pyramid'))->assertCreated()->json();
+    $asset = Asset::query()->findOrFail($assetData['id']);
+
+    expect(Storage::disk('local')->exists($asset->storage_path))->toBeTrue()
+        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBeGreaterThan(0)
+        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->value('used'))->toBeGreaterThan(0);
+
+    (new BuildAssetPyramidJob($asset->id))->failed(new RuntimeException('Pyramid failed.'));
+
+    expect($asset->fresh()->status)->toBe('failed')
+        ->and($asset->fresh()->quota_bytes)->toBe(0)
+        ->and(Storage::disk('local')->exists($asset->storage_path))->toBeFalse()
+        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe(0)
+        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->value('used'))->toBe(0);
 });
 
 it('reserves credits atomically and refunds once on cancellation', function (): void {

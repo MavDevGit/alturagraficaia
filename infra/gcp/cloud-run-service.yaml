@@ -29,6 +29,10 @@ spec:
             - { name: NODE_ENV, value: production }
             - { name: SERVICE_MODE, value: worker }
             - { name: PROCESSING_DRIVER, value: fal }
+            - {
+                name: LOCAL_STORAGE_PATH,
+                value: "/tmp/altura-image-service",
+              }
             - { name: GCP_PROJECT_ID, value: PROJECT_ID }
             - { name: GCS_BUCKET, value: BUCKET_NAME }
             - { name: MAX_REMOTE_BYTES, value: "536870912" }
