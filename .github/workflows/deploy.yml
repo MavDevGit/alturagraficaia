@@ -103,7 +103,7 @@ jobs:
         run: |
           PACKAGE="/tmp/altura-$GITHUB_SHA.tar.gz"
           tar --exclude='apps/api/.env' --exclude='apps/api/storage' --exclude='apps/web/node_modules' \
-            -czf "$PACKAGE" apps/api apps/web/dist
+            -czf "$PACKAGE" apps/api apps/web/dist infra/caddy/alturagrafica.caddy infra/scripts/deploy.sh
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
           echo "PACKAGE_SHA=$(sha256sum "$PACKAGE" | cut -d' ' -f1)" >> "$GITHUB_ENV"
 
@@ -112,8 +112,11 @@ jobs:
         shell: bash
         run: |
           REMOTE_PACKAGE="/tmp/altura-$GITHUB_SHA.tar.gz"
+          REMOTE_DEPLOY="/tmp/altura-deploy-$GITHUB_SHA.sh"
           gcloud compute scp "$PACKAGE" "$VM_NAME:$REMOTE_PACKAGE" \
+            --zone="$VM_ZONE" --project="$GCP_PROJECT_ID" --tunnel-through-iap --quiet
+          gcloud compute scp infra/scripts/deploy.sh "$VM_NAME:$REMOTE_DEPLOY" \
             --zone="$VM_ZONE" --project="$GCP_PROJECT_ID" --tunnel-through-iap --quiet
           gcloud compute ssh "$VM_NAME" --zone="$VM_ZONE" --project="$GCP_PROJECT_ID" \
             --tunnel-through-iap --quiet \
-            --command="sudo /usr/local/sbin/altura-deploy '$REMOTE_PACKAGE' '$GITHUB_SHA' '$PACKAGE_SHA'"
+            --command="sudo /bin/bash '$REMOTE_DEPLOY' '$REMOTE_PACKAGE' '$GITHUB_SHA' '$PACKAGE_SHA'"

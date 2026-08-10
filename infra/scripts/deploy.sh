@@ -33,7 +33,8 @@ echo "$EXPECTED_SHA  $ARCHIVE" | sha256sum --check --status || { echo "Checksum 
 
 install -d -o altura -g caddy -m 0750 "$TARGET"
 tar -xzf "$ARCHIVE" -C "$TARGET"
-if [[ ! -f "$TARGET/apps/api/artisan" || ! -f "$TARGET/apps/web/dist/index.html" || ! -f "$TARGET/apps/api/vendor/autoload.php" ]]; then
+if [[ ! -f "$TARGET/apps/api/artisan" || ! -f "$TARGET/apps/web/dist/index.html" || ! -f "$TARGET/apps/api/vendor/autoload.php" \
+  || ! -f "$TARGET/infra/caddy/alturagrafica.caddy" || ! -f "$TARGET/infra/scripts/deploy.sh" ]]; then
   echo "El paquete no contiene los artefactos de producción." >&2
   exit 1
 fi
@@ -58,11 +59,25 @@ runuser -u altura -- /usr/bin/php8.3 artisan view:cache
 systemctl start altura-backup.service
 runuser -u altura -- /usr/bin/php8.3 artisan migrate --force
 
+CADDY_CONFIG=/etc/caddy/conf.d/alturagrafica.caddy
+CADDY_BACKUP=$(mktemp /tmp/altura-caddy.XXXXXX)
+cp -- "$CADDY_CONFIG" "$CADDY_BACKUP"
+install -o root -g root -m 0644 "$TARGET/infra/caddy/alturagrafica.caddy" "$CADDY_CONFIG"
+if ! caddy validate --config /etc/caddy/Caddyfile; then
+  install -o root -g root -m 0644 "$CADDY_BACKUP" "$CADDY_CONFIG"
+  rm -f -- "$CADDY_BACKUP"
+  echo "La configuración de Caddy no es válida; se restauró la anterior." >&2
+  exit 1
+fi
+systemctl reload caddy
+rm -f -- "$CADDY_BACKUP"
+
 rm -f -- "$CURRENT_LINK.new" "$CURRENT_LINK.rollback"
 ln -s "$TARGET" "$CURRENT_LINK.new"
 mv -Tf "$CURRENT_LINK.new" "$CURRENT_LINK"
 systemctl reload php8.3-fpm
 systemctl restart altura-worker.service
+install -o root -g root -m 0750 "$TARGET/infra/scripts/deploy.sh" /usr/local/sbin/altura-deploy
 
 if ! curl -fsS --max-time 20 http://127.0.0.1:8082/up >/dev/null; then
   if [[ -n "$PREVIOUS" && "$PREVIOUS" == "$RELEASE_ROOT"/* && -d "$PREVIOUS" ]]; then
