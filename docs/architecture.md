@@ -41,8 +41,8 @@ atraviesan la memoria limitada de la VM.
   los topes mensuales son 47.000 lecturas y 90 GB. Cada mosaico reserva 1 MiB
   aunque normalmente sea menor, dejando margen para reutilización de la URL.
 - Cloud Tasks: una cola, una ejecución concurrente y reintentos acotados.
-- Artifact Registry conserva tres imágenes recientes y elimina versiones con
-  más de tres días; el workflow reafirma la política en cada despliegue.
+- Artifact Registry conserva únicamente la imagen más reciente y elimina las
+  anteriores; el workflow reafirma la política en cada despliegue.
 - Secret Manager mantiene solo secretos de runtime; no hay claves JSON.
 - Un presupuesto mensual de USD 5 avisa al 10 %, 50 %, 90 % y 100 %, además de
   alertar si el gasto previsto alcanza el 100 %.

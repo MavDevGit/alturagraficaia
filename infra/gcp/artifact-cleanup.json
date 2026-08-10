@@ -2,11 +2,11 @@
   {
     "name": "delete-old-versions",
     "action": { "type": "Delete" },
-    "condition": { "tagState": "any", "olderThan": "3d" }
+    "condition": { "tagState": "any" }
   },
   {
     "name": "keep-recent-versions",
     "action": { "type": "Keep" },
-    "mostRecentVersions": { "keepCount": 3 }
+    "mostRecentVersions": { "keepCount": 1 }
   }
 ]
