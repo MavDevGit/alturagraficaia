@@ -1,6 +1,5 @@
 <?php
 
-use App\Jobs\BuildAssetPyramidJob;
 use App\Jobs\ProcessImageJob;
 use App\Models\Asset;
 use App\Models\CreditLedger;
@@ -34,33 +33,23 @@ function localHeaders(string $uid = 'credit-test'): array
     return ['Authorization' => "Bearer local:{$uid}"];
 }
 
-it('uploads an original and queues its deep zoom pyramid', function (): void {
+it('uploads one ready original without queuing a pyramid', function (): void {
     $response = $this->post('/api/v1/uploads', [
         'file' => UploadedFile::fake()->image('source.png', 572, 1024),
     ], localHeaders());
 
-    $response->assertCreated()->assertJsonPath('width', 572)->assertJsonPath('height', 1024);
-    Queue::assertPushed(BuildAssetPyramidJob::class);
-    expect(User::query()->first()->credit_balance)->toBe(20);
-});
-
-it('releases storage and operation reservations when an original pyramid fails', function (): void {
-    $assetData = $this->post('/api/v1/uploads', [
-        'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('failed-pyramid'))->assertCreated()->json();
-    $asset = Asset::query()->findOrFail($assetData['id']);
-
-    expect(Storage::disk('local')->exists($asset->storage_path))->toBeTrue()
-        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBeGreaterThan(0)
-        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->value('used'))->toBeGreaterThan(0);
-
-    (new BuildAssetPyramidJob($asset->id))->failed(new RuntimeException('Pyramid failed.'));
-
-    expect($asset->fresh()->status)->toBe('failed')
-        ->and($asset->fresh()->quota_bytes)->toBe(0)
-        ->and(Storage::disk('local')->exists($asset->storage_path))->toBeFalse()
-        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe(0)
-        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->value('used'))->toBe(0);
+    $payload = $response->assertCreated()
+        ->assertJsonPath('width', 572)
+        ->assertJsonPath('height', 1024)
+        ->assertJsonPath('status', 'ready')
+        ->json();
+    $asset = Asset::query()->findOrFail($payload['id']);
+    Queue::assertNothingPushed();
+    expect(User::query()->first()->credit_balance)->toBe(20)
+        ->and(Storage::disk('local')->exists($asset->storage_path))->toBeTrue()
+        ->and($asset->quota_bytes)->toBe($asset->byte_size)
+        ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe($asset->byte_size)
+        ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->exists())->toBeFalse();
 });
 
 it('reserves credits atomically and refunds once on cancellation', function (): void {
@@ -204,15 +193,12 @@ it('keeps the storage reservation global when the calendar month changes', funct
         ->and(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe(70);
 });
 
-it('blocks a pyramid before exceeding the GCS Class A operation ceiling', function (): void {
-    config()->set('altura.gcs_class_a_soft_limit', 1);
-    config()->set('altura.gcs_class_a_hard_limit', 1);
-
+it('does not consume GCS Class A quota while accepting an original', function (): void {
     $this->post('/api/v1/uploads', [
         'file' => UploadedFile::fake()->image('source.png', 572, 1024),
-    ], localHeaders('gcs-operations-quota'))->assertUnprocessable()->assertJsonValidationErrors('quota');
+    ], localHeaders('gcs-operations-quota'))->assertCreated();
 
-    expect(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBe(0)
+    expect(UsageQuota::query()->where('resource', QuotaService::STORAGE)->value('used'))->toBeGreaterThan(0)
         ->and(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_A)->exists())->toBeFalse();
 });
 

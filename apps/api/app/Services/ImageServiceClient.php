@@ -3,12 +3,10 @@
 namespace App\Services;
 
 use Google\Auth\Credentials\GCECredentials;
-use App\Models\Asset;
 use App\Models\Job;
 use App\Models\ToolSetting;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class ImageServiceClient
 {
@@ -25,24 +23,13 @@ class ImageServiceClient
             'modelId' => $this->modelFor($job->tool),
             'input' => $job->settings ?? [],
             'sourceObject' => $job->sourceAsset->storage_path,
-            'sourcePyramidPrefix' => "tiles/{$job->sourceAsset->id}",
-            'resultObject' => $job->resultAsset->storage_path,
-            'resultPyramidPrefix' => "tiles/{$job->resultAsset->id}",
             'outputFormat' => $job->settings['format'] ?? 'png',
+            'resultExpiresInSeconds' => config('altura.asset_ttl_days') * 86400,
+            'expectedWidth' => $job->resultAsset->width,
+            'expectedHeight' => $job->resultAsset->height,
         ])->throw();
 
         return (string) $response->json('providerRequestId');
-    }
-
-    /** @return array<string,mixed> */
-    public function pyramid(Asset $asset): array
-    {
-        return $this->client()->timeout(900)->post('/v1/pyramids', [
-            'jobId' => (string) Str::uuid(),
-            'assetId' => $asset->id,
-            'source' => $asset->storage_path,
-            'destinationPrefix' => "tiles/{$asset->id}",
-        ])->throw()->json();
     }
 
     public function cancel(Job $job): void

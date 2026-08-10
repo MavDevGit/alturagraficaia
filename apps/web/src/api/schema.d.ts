@@ -90,18 +90,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/assets/{id}/tiles/{level}/{tile}": {
+    "/assets/{id}/content": {
         parameters: {
-            query?: never;
+            query: {
+                token: string;
+            };
             header?: never;
             path: {
                 id: components["parameters"]["Id"];
-                level: number;
-                tile: string;
             };
             cookie?: never;
         };
-        get: operations["getAssetTile"];
+        get: operations["getAssetContent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -299,16 +299,13 @@ export interface components {
             id: string;
             width: number;
             height: number;
-            /** @constant */
-            tile_size: 512;
-            /** @constant */
-            overlap: 1;
-            /** @constant */
-            format: "webp";
-            max_level: number;
-            tile_url: string;
+            mime_type: string;
+            /** Format: uri */
+            image_url: string;
             ready: boolean;
             token_expires_in: number;
+            /** Format: date-time */
+            expires_at: string | null;
         };
     };
     responses: never;
@@ -458,7 +455,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OpenSeadragon source descriptor */
+            /** @description Full-resolution image source descriptor */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -469,21 +466,28 @@ export interface operations {
             };
         };
     };
-    getAssetTile: {
+    getAssetContent: {
         parameters: {
-            query?: never;
+            query: {
+                token: string;
+            };
             header?: never;
             path: {
                 id: components["parameters"]["Id"];
-                level: number;
-                tile: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Lossless WebP tile */
+            /** @description Complete image or redirect to its temporary provider URL */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Direct redirect to GCS or FAL */
+            302: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -502,8 +506,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Original binary */
+            /** @description Complete binary */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Direct redirect to GCS or FAL */
+            302: {
                 headers: {
                     [name: string]: unknown;
                 };

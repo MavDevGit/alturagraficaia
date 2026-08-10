@@ -22,42 +22,35 @@ class AssetController extends Controller
             'id' => $asset->id,
             'width' => $asset->width,
             'height' => $asset->height,
-            'tile_size' => $asset->tile_size,
-            'overlap' => $asset->overlap,
-            'format' => 'webp',
-            'max_level' => $asset->max_level,
-            'ready' => $asset->status === 'ready' && $asset->tile_prefix !== null,
-            'tile_url' => str_replace(
-                ['LEVELTOKEN', 'XTOKEN', 'YTOKEN'],
-                ['{level}', '{x}', '{y}'],
-                route('assets.tile', ['asset' => $asset, 'level' => 'LEVELTOKEN', 'tile' => 'XTOKEN_YTOKEN.webp', 'token' => $token]),
-            ),
+            'mime_type' => $asset->mime_type,
+            'ready' => $asset->status === 'ready' && ($asset->external_url !== null || $asset->storage_path !== ''),
+            'image_url' => route('assets.content', ['asset' => $asset, 'token' => $token]),
             'token_expires_in' => $ttl,
+            'expires_at' => $asset->expires_at?->toIso8601String(),
         ]);
     }
 
-    public function tile(Request $request, Asset $asset, int $level, string $tile, AssetAccessToken $tokens, QuotaService $quotas): Response
+    public function content(Request $request, Asset $asset, AssetAccessToken $tokens, QuotaService $quotas): Response
     {
         abort_unless($tokens->valid($asset, $request->query('token')), 401);
-        abort_unless((bool) preg_match('/^\d+_\d+\.webp$/', $tile), 404);
-        abort_unless($asset->tile_prefix, 404);
-        $disk = Storage::disk($asset->storage_disk);
-        $canonicalPath = "{$asset->tile_prefix}/image_files/{$level}/{$tile}";
-        if ($asset->storage_disk === 'gcs') {
-            $quotas->reserveGcsRead(config('altura.gcs_tile_egress_estimate_bytes'));
+        abort_unless($asset->status === 'ready', 404);
+        if ($asset->external_url) {
+            return redirect()->away($asset->external_url, 302, ['Cache-Control' => 'private, no-store']);
+        }
 
-            return redirect()->away($disk->temporaryUrl($canonicalPath, now()->addSeconds(config('altura.gcs_signed_url_ttl_seconds'))), 302, [
+        $disk = Storage::disk($asset->storage_disk);
+        if ($asset->storage_disk === 'gcs') {
+            $quotas->reserveGcsRead(max(1, $asset->byte_size));
+
+            return redirect()->away($disk->temporaryUrl($asset->storage_path, now()->addSeconds(config('altura.gcs_signed_url_ttl_seconds'))), 302, [
                 'Cache-Control' => 'private, no-store',
             ]);
         }
-        $path = collect([
-            $canonicalPath,
-            "{$asset->tile_prefix}/image.dzi_files/{$level}/{$tile}",
-        ])->first(fn (string $candidate): bool => $disk->exists($candidate));
-        abort_unless($path, 404);
 
-        return $disk->response($path, null, [
-            'Content-Type' => 'image/webp',
+        abort_unless($disk->exists($asset->storage_path), 404);
+
+        return $disk->response($asset->storage_path, null, [
+            'Content-Type' => $asset->mime_type,
             'Cache-Control' => 'private, max-age=900',
         ]);
     }
@@ -65,6 +58,10 @@ class AssetController extends Controller
     public function download(Request $request, Asset $asset, QuotaService $quotas): Response
     {
         $this->authorizeAsset($request, $asset);
+        abort_unless($asset->status === 'ready', 404);
+        if ($asset->external_url) {
+            return redirect()->away($asset->external_url, 302, ['Cache-Control' => 'private, no-store']);
+        }
         $name = $asset->kind === 'result' ? 'altura-grafica-ia-'.$asset->id.'.'.pathinfo($asset->storage_path, PATHINFO_EXTENSION) : $asset->original_name;
 
         $disk = Storage::disk($asset->storage_disk);

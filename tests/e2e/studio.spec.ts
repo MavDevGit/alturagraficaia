@@ -7,7 +7,7 @@ const pixel = Buffer.from(
 );
 const detailedTile = readFileSync("apps/web/public/pwa-512x512.png");
 
-test("loads only visible tiles and keeps wheel zoom available", async ({
+test("loads complete images directly and keeps wheel zoom available", async ({
   page,
 }) => {
   const browserErrors: string[] = [];
@@ -19,11 +19,11 @@ test("loads only visible tiles and keeps wheel zoom available", async ({
     if (response.status() >= 400)
       browserErrors.push(`${response.status()} ${response.url()}`);
   });
-  const tileRequests: string[] = [];
+  const imageRequests: string[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const url = route.request().url();
-    if (url.includes("/tiles/")) {
-      tileRequests.push(url);
+    if (url.includes("/content")) {
+      imageRequests.push(url);
       return route.fulfill({
         status: 200,
         contentType: "image/png",
@@ -64,7 +64,7 @@ test("loads only visible tiles and keeps wheel zoom available", async ({
     path: test.info().outputPath("login.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "Administrador local" }).click();
+  await page.getByRole("button", { name: "Ingresar al entorno local" }).click();
   await expect(
     page.getByRole("heading", { name: "Sube una imagen para ampliarla" }),
   ).toBeVisible();
@@ -93,12 +93,12 @@ test("loads only visible tiles and keeps wheel zoom available", async ({
   });
   await page.getByRole("button", { name: /Procesar imagen/ }).click();
   await expect(page.getByRole("button", { name: "Slider" })).toBeVisible();
-  await expect.poll(() => tileRequests.length).toBeGreaterThan(0);
-  expect(tileRequests.some((url) => url.includes("/content"))).toBeFalsy();
+  await expect.poll(() => imageRequests.length).toBeGreaterThanOrEqual(2);
+  expect(imageRequests.some((url) => url.includes("/tiles/"))).toBeFalsy();
   const stage = page.locator(".compare-stage");
   await stage.hover();
   const initialZoom = await page.locator(".zoom-readout").textContent();
-  await page.mouse.wheel(0, -500);
+  await page.mouse.wheel(0, 500);
   await expect
     .poll(() => page.locator(".zoom-readout").textContent())
     .not.toBe(initialZoom);
@@ -145,16 +145,15 @@ function job(status: "queued" | "completed") {
       status === "completed" ? asset("r1", "result", 2288, 4096) : null,
   };
 }
-function viewer(id: string, width: number, height: number, max: number) {
+function viewer(id: string, width: number, height: number, _max: number) {
   return {
     id,
     width,
     height,
-    tile_size: 512,
-    overlap: 1,
-    format: "webp",
-    max_level: max,
+    mime_type: "image/png",
     ready: true,
-    tile_url: `http://localhost:8000/api/v1/assets/${id}/tiles/{level}/{x}_{y}.webp?token=test`,
+    image_url: `http://localhost:8000/api/v1/assets/${id}/content?token=test`,
+    token_expires_in: 900,
+    expires_at: "2026-08-17T00:00:00Z",
   };
 }

@@ -24,9 +24,6 @@ const schema = z
     FINALIZE_AUDIENCE: z.string().url().optional(),
     TASKS_INVOKER_SERVICE_ACCOUNT: z.string().email().optional(),
     LOCAL_STORAGE_PATH: z.string().default("../../storage/image-service"),
-    MAX_REMOTE_BYTES: z.coerce.number().int().positive().default(536_870_912),
-    TILE_UPLOAD_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(6),
-    TILE_WEBP_QUALITY: z.coerce.number().int().min(70).max(100).default(88),
   })
   .superRefine((value, context) => {
     if (value.NODE_ENV !== "production") return;

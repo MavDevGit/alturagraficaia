@@ -29,11 +29,11 @@ function callbackFixture(): array
         'user_id' => $user->id,
         'kind' => 'result',
         'status' => 'pending',
-        'storage_disk' => 'local',
-        'storage_path' => "assets/{$user->id}/results/result.png",
+        'storage_disk' => 'fal',
+        'storage_path' => "external/result",
         'mime_type' => 'image/png',
         'byte_size' => 0,
-        'quota_bytes' => 1000,
+        'quota_bytes' => 0,
         'width' => 572,
         'height' => 1024,
     ]);
@@ -78,13 +78,10 @@ it('keeps a failed and refunded image job terminal when a late ready callback ar
         'jobId' => $job->id,
         'status' => 'ready',
         'providerRequestId' => 'provider-1',
-        'resultObject' => $result->storage_path,
-        'pyramidPrefix' => "tiles/{$result->id}",
+        'resultUrl' => 'https://v3b.fal.media/files/example/result.png',
         'width' => 2288,
         'height' => 4096,
-        'maxLevel' => 12,
         'byteSize' => 2000,
-        'storedBytes' => 3000,
         'mimeType' => 'image/png',
     ])->assertOk();
 
@@ -95,22 +92,43 @@ it('keeps a failed and refunded image job terminal when a late ready callback ar
         ->and(CreditLedger::query()->where('type', 'capture')->count())->toBe(0);
 });
 
-it('rejects a ready callback that points outside the reserved job', function (): void {
+it('rejects a ready callback from a host outside the FAL result allowlist', function (): void {
     [, $job, $result] = callbackFixture();
 
     sendImageCallback([
         'jobId' => $job->id,
         'status' => 'ready',
         'providerRequestId' => 'provider-1',
-        'resultObject' => 'assets/another-user/private.png',
-        'pyramidPrefix' => "tiles/{$result->id}",
+        'resultUrl' => 'https://evil.example/private.png',
         'width' => 2288,
         'height' => 4096,
-        'maxLevel' => 12,
         'byteSize' => 2000,
-        'storedBytes' => 3000,
         'mimeType' => 'image/png',
-    ])->assertUnprocessable()->assertJsonValidationErrors('resultObject');
+    ])->assertUnprocessable()->assertJsonValidationErrors('resultUrl');
 
     expect($job->fresh()->status)->toBe('processing');
+});
+
+it('completes a job by storing only the temporary FAL URL', function (): void {
+    [$user, $job, $result] = callbackFixture();
+    $resultUrl = 'https://v3b.fal.media/files/example/complete-result.png';
+
+    sendImageCallback([
+        'jobId' => $job->id,
+        'status' => 'ready',
+        'providerRequestId' => 'provider-1',
+        'resultUrl' => $resultUrl,
+        'width' => 2288,
+        'height' => 4096,
+        'byteSize' => 750_000_000,
+        'mimeType' => 'image/png',
+    ])->assertOk();
+
+    expect($job->fresh()->status)->toBe('completed')
+        ->and($result->fresh()->external_url)->toBe($resultUrl)
+        ->and($result->fresh()->tile_prefix)->toBeNull()
+        ->and($result->fresh()->quota_bytes)->toBe(0)
+        ->and($result->fresh()->byte_size)->toBe(750_000_000)
+        ->and($user->fresh()->credit_balance)->toBe(18)
+        ->and(CreditLedger::query()->where('type', 'capture')->count())->toBe(1);
 });

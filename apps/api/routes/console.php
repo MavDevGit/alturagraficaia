@@ -68,15 +68,17 @@ Artisan::command('users:promote-admin {identity? : Correo o Firebase UID} {--fir
 Artisan::command('assets:purge-expired', function (): void {
     Asset::query()->where('expires_at', '<=', now())->where('status', '!=', 'expired')->chunkById(100, function ($assets): void {
         foreach ($assets as $asset) {
-            Storage::disk($asset->storage_disk)->delete($asset->storage_path);
-            if ($asset->tile_prefix) {
-                Storage::disk($asset->storage_disk)->deleteDirectory($asset->tile_prefix);
+            if (! $asset->external_url) {
+                Storage::disk($asset->storage_disk)->delete($asset->storage_path);
+                if ($asset->tile_prefix) {
+                    Storage::disk($asset->storage_disk)->deleteDirectory($asset->tile_prefix);
+                }
             }
             app(QuotaService::class)->releaseAsset($asset);
             $asset->update(['status' => 'expired']);
         }
     });
-})->purpose('Elimina originales, resultados y mosaicos vencidos');
+})->purpose('Elimina originales vencidos y expira referencias temporales de resultados');
 
 Artisan::command('jobs:fail-stale', function (): void {
     $cutoff = now()->subMinutes(config('altura.job_stale_minutes'));

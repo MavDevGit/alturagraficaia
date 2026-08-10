@@ -12,14 +12,14 @@ spec:
         autoscaling.knative.dev/maxScale: "1"
         run.googleapis.com/cpu-throttling: "true"
     spec:
-      containerConcurrency: 1
-      timeoutSeconds: 900
+      containerConcurrency: 20
+      timeoutSeconds: 300
       serviceAccountName: altura-image-worker@__PROJECT_ID__.iam.gserviceaccount.com
       containers:
         - image: us-central1-docker.pkg.dev/__PROJECT_ID__/altura/image-service:IMAGE_TAG
           ports: [{ containerPort: 8080 }]
           resources:
-            limits: { cpu: "2", memory: 2Gi }
+            limits: { cpu: "1", memory: 512Mi }
           startupProbe:
             httpGet: { path: /health, port: 8080 }
             periodSeconds: 5
@@ -35,9 +35,6 @@ spec:
               }
             - { name: GCP_PROJECT_ID, value: __PROJECT_ID__ }
             - { name: GCS_BUCKET, value: BUCKET_NAME }
-            - { name: MAX_REMOTE_BYTES, value: "536870912" }
-            - { name: TILE_UPLOAD_CONCURRENCY, value: "6" }
-            - { name: TILE_WEBP_QUALITY, value: "88" }
             - {
                 name: FAL_WEBHOOK_URL,
                 value: "https://images.example.com/webhooks/fal",

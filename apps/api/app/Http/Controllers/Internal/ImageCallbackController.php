@@ -20,15 +20,12 @@ class ImageCallbackController extends Controller
         abort_unless(hash_equals($expected, (string) $request->header('X-Altura-Signature')), 401);
         $data = $request->validate([
             'jobId' => ['required', 'uuid'],
-            'status' => ['required', 'in:processing,tiling,ready,failed'],
+            'status' => ['required', 'in:processing,ready,failed'],
             'providerRequestId' => ['nullable', 'string', 'max:255'],
-            'resultObject' => ['required_if:status,ready', 'nullable', 'string', 'max:1024'],
-            'pyramidPrefix' => ['required_if:status,ready', 'nullable', 'string', 'max:1024'],
-            'width' => ['required_if:status,ready', 'nullable', 'integer', 'min:1', 'max:'.config('altura.max_output_side')],
-            'height' => ['required_if:status,ready', 'nullable', 'integer', 'min:1', 'max:'.config('altura.max_output_side')],
-            'maxLevel' => ['required_if:status,ready', 'nullable', 'integer', 'between:0,32'],
-            'byteSize' => ['required_if:status,ready', 'nullable', 'integer', 'min:1', 'max:'.config('altura.storage_hard_limit_bytes')],
-            'storedBytes' => ['required_if:status,ready', 'nullable', 'integer', 'min:1', 'max:'.config('altura.storage_hard_limit_bytes')],
+            'resultUrl' => ['required_if:status,ready', 'nullable', 'url', 'max:4096'],
+            'width' => ['nullable', 'integer', 'min:1', 'max:'.config('altura.max_output_side')],
+            'height' => ['nullable', 'integer', 'min:1', 'max:'.config('altura.max_output_side')],
+            'byteSize' => ['nullable', 'integer', 'min:1'],
             'mimeType' => ['required_if:status,ready', 'nullable', 'in:image/png,image/jpeg,image/webp'],
             'error' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -61,26 +58,27 @@ class ImageCallbackController extends Controller
                 }
             } elseif ($data['status'] === 'ready') {
                 $result = $job->resultAsset;
+                $width = $data['width'] ?? $result?->width;
+                $height = $data['height'] ?? $result?->height;
                 if (
                     ! $result
-                    || $data['resultObject'] !== $result->storage_path
-                    || $data['pyramidPrefix'] !== "tiles/{$result->id}"
+                    || ! $this->isAllowedResultUrl($data['resultUrl'])
                     || $data['mimeType'] !== $result->mime_type
-                    || config('altura.max_output_pixels') < $data['width'] * $data['height']
+                    || ! $width
+                    || ! $height
+                    || config('altura.max_output_pixels') < $width * $height
                 ) {
                     throw ValidationException::withMessages([
-                        'resultObject' => 'Los datos del resultado no coinciden con el trabajo reservado.',
+                        'resultUrl' => 'Los datos del resultado no coinciden con el trabajo reservado.',
                     ]);
                 }
                 $result->update([
-                    'tile_prefix' => $data['pyramidPrefix'],
+                    'external_url' => $data['resultUrl'],
                     'status' => 'ready',
-                    'width' => $data['width'],
-                    'height' => $data['height'],
-                    'max_level' => $data['maxLevel'],
-                    'byte_size' => $data['byteSize'],
+                    'width' => $width,
+                    'height' => $height,
+                    'byte_size' => $data['byteSize'] ?? 0,
                 ]);
-                $quotas->reconcileAssetStorage($result, $data['storedBytes']);
                 $job->update([
                     'status' => 'completed',
                     'provider_job_id' => $data['providerRequestId'] ?? $job->provider_job_id,
@@ -97,5 +95,23 @@ class ImageCallbackController extends Controller
         }, 3);
 
         return response()->json(['accepted' => true]);
+    }
+
+    private function isAllowedResultUrl(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        if (
+            app()->environment(['local', 'testing'])
+            && $scheme === 'http'
+            && in_array($host, ['127.0.0.1', 'localhost'], true)
+        ) {
+            return true;
+        }
+
+        return $scheme === 'https' && ($host === 'fal.media'
+            || str_ends_with($host, '.fal.media')
+            || $host === 'storage.googleapis.com');
     }
 }

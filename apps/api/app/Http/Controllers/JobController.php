@@ -53,7 +53,7 @@ class JobController extends Controller
         if ($source->kind !== 'original' || in_array($source->status, ['expired', 'failed'], true)) {
             throw ValidationException::withMessages(['source_asset_id' => 'La imagen original ya no está disponible.']);
         }
-        $this->validateOutputDimensions($source, $data['tool'], $data['settings'] ?? []);
+        $outputDimensions = $this->validateOutputDimensions($source, $data['tool'], $data['settings'] ?? []);
         if ($data['tool'] === 'upscaler' && ($data['settings']['format'] ?? 'png') === 'webp') {
             $dimensions = UpscaleGeometry::outputDimensions($source->width, $source->height, $data['settings'] ?? []);
             if ($dimensions['width'] > 16383 || $dimensions['height'] > 16383) {
@@ -69,18 +69,16 @@ class JobController extends Controller
         $cost = $this->cost($data['tool'], $data['settings'] ?? [], $source);
         $extension = $data['settings']['format'] ?? 'png';
         $mime = $extension === 'jpeg' ? 'image/jpeg' : "image/{$extension}";
-        $quotaBytes = $quotas->estimateResult($source, $data['tool'], $data['settings'] ?? []);
 
-        $job = DB::transaction(function () use ($request, $source, $data, $cost, $extension, $mime, $credits, $quotas, $quotaBytes): Job {
-            $quotas->reserveStorage($quotaBytes);
+        $job = DB::transaction(function () use ($request, $source, $data, $cost, $mime, $credits, $quotas, $outputDimensions): Job {
             $quotas->reserveImageJob();
-            $quotas->reserveResultPyramidOperations($source, $data['tool'], $data['settings'] ?? []);
+            $resultId = (string) Str::uuid();
             $result = Asset::query()->create([
-                'id' => (string) Str::uuid(), 'user_id' => $request->user()->id, 'kind' => 'result',
-                'status' => 'pending', 'storage_disk' => config('filesystems.default'),
-                'storage_path' => "assets/{$request->user()->id}/results/".Str::uuid().".{$extension}",
-                'mime_type' => $mime, 'byte_size' => 0, 'quota_bytes' => $quotaBytes,
-                'width' => $source->width, 'height' => $source->height,
+                'id' => $resultId, 'user_id' => $request->user()->id, 'kind' => 'result',
+                'status' => 'pending', 'storage_disk' => 'fal',
+                'storage_path' => "external/{$resultId}",
+                'mime_type' => $mime, 'byte_size' => 0, 'quota_bytes' => 0,
+                'width' => $outputDimensions['width'], 'height' => $outputDimensions['height'],
                 'expires_at' => now()->addDays(config('altura.asset_ttl_days')),
             ]);
             $job = Job::query()->create([
@@ -182,7 +180,7 @@ class JobController extends Controller
     }
 
     /** @param array<string,mixed> $settings */
-    private function validateOutputDimensions(Asset $source, string $tool, array $settings): void
+    private function validateOutputDimensions(Asset $source, string $tool, array $settings): array
     {
         if ($tool === 'upscaler') {
             ['width' => $width, 'height' => $height] = UpscaleGeometry::outputDimensions(
@@ -207,5 +205,7 @@ class JobController extends Controller
                 'settings' => 'La configuración produciría una imagen demasiado grande para procesarla de forma segura.',
             ]);
         }
+
+        return ['width' => $width, 'height' => $height];
     }
 }

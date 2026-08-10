@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\BuildAssetPyramidJob;
 use App\Models\Asset;
 use App\Services\QuotaService;
 use App\Support\ApiPresenter;
@@ -58,10 +57,7 @@ class UploadController extends Controller
         $fileBytes = (int) $file->getSize();
         $quotaBytes = $quotas->estimateOriginal($width, $height, $fileBytes);
         $quotas->reserveStorage($quotaBytes);
-        $pyramidReserved = false;
         try {
-            $quotas->reservePyramidOperations($width, $height);
-            $pyramidReserved = true;
             try {
                 $stored = Storage::disk($disk)->putFileAs(dirname($path), $file, basename($path));
             } catch (UnableToWriteFile $error) {
@@ -78,7 +74,7 @@ class UploadController extends Controller
                 'id' => $id,
                 'user_id' => $request->user()->id,
                 'kind' => 'original',
-                'status' => 'pending',
+                'status' => 'ready',
                 'storage_disk' => $disk,
                 'storage_path' => $path,
                 'original_name' => $file->getClientOriginalName(),
@@ -92,12 +88,8 @@ class UploadController extends Controller
         } catch (Throwable $error) {
             Storage::disk($disk)->delete($path);
             $quotas->releaseStorage($quotaBytes);
-            if ($pyramidReserved) {
-                $quotas->releasePyramidOperations($width, $height);
-            }
             throw $error;
         }
-        BuildAssetPyramidJob::dispatch($asset->id);
 
         return response()->json(ApiPresenter::asset($asset), 201);
     }

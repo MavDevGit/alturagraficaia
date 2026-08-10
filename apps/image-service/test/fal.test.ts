@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFalInput,
+  falObjectLifecyclePreference,
   falQueueModelId,
   supportedFalModels,
 } from "../src/fal.js";
@@ -14,10 +15,8 @@ function request(overrides: Partial<ProcessingRequest>): ProcessingRequest {
     modelId: supportedFalModels[tool],
     input: {},
     sourceObject: "private/original.png",
-    sourcePyramidPrefix: "tiles/source",
-    resultObject: "private/result.png",
-    resultPyramidPrefix: "tiles/result",
     outputFormat: "png",
+    resultExpiresInSeconds: 604_800,
     ...overrides,
   };
 }
@@ -115,6 +114,12 @@ describe("FAL input adapter", () => {
     );
     expect(falQueueModelId("fal-ai/flux-2-pro/outpaint")).toBe(
       "fal-ai/flux-2-pro",
+    );
+  });
+
+  it("asks FAL to retain the result for the seven-day history window", () => {
+    expect(falObjectLifecyclePreference(request({}).resultExpiresInSeconds)).toBe(
+      '{"expiration_duration_seconds":604800}',
     );
   });
 });

@@ -86,47 +86,6 @@ export async function uploadObject(
   await writeFile(destination, contents);
 }
 
-export async function copyObject(
-  source: string,
-  destination: string,
-): Promise<void> {
-  await uploadObject(
-    destination,
-    await downloadObject(source),
-    contentTypeFor(destination),
-  );
-}
-
-export async function downloadRemoteObject(url: string): Promise<Buffer> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(120_000) });
-  if (!response.ok)
-    throw new Error(
-      `No se pudo descargar el resultado remoto (${response.status}).`,
-    );
-  if (new URL(response.url).protocol !== "https:") {
-    throw new Error("El proveedor devolvió una URL de resultado insegura.");
-  }
-  const declaredSize = Number(response.headers.get("content-length") ?? 0);
-  if (declaredSize > config.MAX_REMOTE_BYTES) {
-    throw new Error("El resultado remoto supera el tamaño máximo permitido.");
-  }
-  if (!response.body) throw new Error("El resultado remoto no contiene datos.");
-  const reader = response.body.getReader();
-  const chunks: Buffer[] = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > config.MAX_REMOTE_BYTES) {
-      await reader.cancel();
-      throw new Error("El resultado remoto supera el tamaño máximo permitido.");
-    }
-    chunks.push(Buffer.from(value));
-  }
-  return Buffer.concat(chunks, total);
-}
-
 export function contentTypeFor(objectName: string): string {
   if (/\.jpe?g$/i.test(objectName)) return "image/jpeg";
   if (/\.webp$/i.test(objectName)) return "image/webp";

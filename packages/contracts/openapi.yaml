@@ -95,32 +95,30 @@ paths:
       operationId: getAssetViewer
       responses:
         "200":
-          description: OpenSeadragon source descriptor
+          description: Full-resolution image source descriptor
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ViewerSource" }
-  /assets/{id}/tiles/{level}/{tile}:
+  /assets/{id}/content:
     parameters:
       - $ref: "#/components/parameters/Id"
-      - name: level
-        in: path
+      - name: token
+        in: query
         required: true
-        schema: { type: integer, minimum: 0 }
-      - name: tile
-        in: path
-        required: true
-        schema: { type: string, pattern: '^[0-9]+_[0-9]+\\.webp$' }
+        schema: { type: string }
     get:
-      operationId: getAssetTile
+      operationId: getAssetContent
       responses:
-        "200": { description: Lossless WebP tile }
+        "200": { description: Complete image or redirect to its temporary provider URL }
+        "302": { description: Direct redirect to GCS or FAL }
   /assets/{id}/download:
     parameters:
       - $ref: "#/components/parameters/Id"
     get:
       operationId: downloadAsset
       responses:
-        "200": { description: Original binary }
+        "200": { description: Complete binary }
+        "302": { description: Direct redirect to GCS or FAL }
   /admin/users:
     get:
       operationId: adminListUsers
@@ -271,22 +269,18 @@ components:
           id,
           width,
           height,
-          tile_size,
-          overlap,
-          format,
-          max_level,
+          mime_type,
           ready,
-          tile_url,
+          image_url,
           token_expires_in,
+          expires_at,
         ]
       properties:
         id: { type: string, format: uuid }
         width: { type: integer }
         height: { type: integer }
-        tile_size: { type: integer, const: 512 }
-        overlap: { type: integer, const: 1 }
-        format: { type: string, const: webp }
-        max_level: { type: integer }
-        tile_url: { type: string }
+        mime_type: { type: string }
+        image_url: { type: string, format: uri }
         ready: { type: boolean }
         token_expires_in: { type: integer }
+        expires_at: { type: [string, "null"], format: date-time }

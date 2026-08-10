@@ -1,16 +1,13 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { createHash } from "node:crypto";
-import sharp from "sharp";
 import { config } from "./config.js";
 import { notifyApi } from "./callback.js";
 import { cancelFalJob, submitFalJob, waitForFalResult } from "./fal.js";
-import { buildPyramid } from "./pyramid.js";
 import {
   downloadObject,
   downloadOptionalObject,
   uploadObject,
-  downloadRemoteObject,
   contentTypeFor,
 } from "./storage.js";
 import { renderFake } from "./fake.js";
@@ -19,7 +16,6 @@ import { enqueueFalFinalize } from "./tasks.js";
 import {
   falFinalizeRequestSchema,
   processingRequestSchema,
-  pyramidRequestSchema,
   type FalFinalizeRequest,
 } from "./types.js";
 
@@ -67,6 +63,21 @@ app.get("/health", async () => ({
   status: "ok",
   service: "altura-image-service",
 }));
+
+app.get("/fake-results/:filename", async (request, reply) => {
+  if (config.PROCESSING_DRIVER !== "fake") {
+    return reply.code(404).send({ message: "Ruta no disponible." });
+  }
+  const { filename } = request.params as { filename?: string };
+  if (!filename || !/^[0-9a-f-]{36}\.(png|jpe?g|webp)$/i.test(filename)) {
+    return reply.code(404).send({ message: "Resultado no encontrado." });
+  }
+  const contents = await downloadObject(`fake-results/${filename}`);
+  return reply
+    .type(contentTypeFor(filename))
+    .header("Cache-Control", "private, max-age=3600")
+    .send(contents);
+});
 
 app.post("/v1/jobs", async (request, reply) => {
   if (!authorized(request.headers["x-internal-key"] as string | undefined)) {
@@ -142,19 +153,6 @@ app.post("/v1/jobs", async (request, reply) => {
     providerRequestId,
     status: "processing",
   });
-});
-
-app.post("/v1/pyramids", async (request, reply) => {
-  if (!authorized(request.headers["x-internal-key"] as string | undefined)) {
-    return reply.code(401).send({ message: "No autorizado." });
-  }
-  const parsed = pyramidRequestSchema.safeParse(request.body);
-  if (!parsed.success)
-    return reply
-      .code(422)
-      .send({ message: "Solicitud inválida.", errors: parsed.error.flatten() });
-  const manifest = await buildPyramid(parsed.data);
-  return reply.code(201).send(manifest);
 });
 
 app.post("/v1/jobs/:jobId/cancel", async (request, reply) => {
@@ -360,12 +358,19 @@ async function processFake(
 ): Promise<void> {
   const source = await downloadObject(request.sourceObject);
   const encoded = await renderFake(source, request);
-  await uploadObject(
-    request.resultObject,
-    encoded,
-    contentTypeFor(request.resultObject),
-  );
-  await complete(request, providerRequestId, encoded);
+  const extension = request.outputFormat === "jpeg" ? "jpg" : request.outputFormat;
+  const resultObject = `fake-results/${request.jobId}.${extension}`;
+  await uploadObject(resultObject, encoded, contentTypeFor(resultObject));
+  await notifyApi({
+    jobId: request.jobId,
+    status: "ready",
+    providerRequestId,
+    resultUrl: `http://127.0.0.1:${config.PORT}/fake-results/${request.jobId}.${extension}`,
+    width: request.expectedWidth,
+    height: request.expectedHeight,
+    byteSize: encoded.byteLength,
+    mimeType: contentTypeFor(resultObject),
+  });
 }
 
 async function processFalFinalize(
@@ -412,21 +417,18 @@ async function processFalFinalize(
         ),
       ),
     );
-    const resultUrl = findImageUrl(finalize.payload);
-    if (!resultUrl) throw new Error("FAL no devolvió una URL de imagen.");
+    const result = findImageResult(finalize.payload);
+    if (!result) throw new Error("FAL no devolvió una URL de imagen permitida.");
     await notifyApi({
       jobId: finalize.jobId,
-      status: "tiling",
+      status: "ready",
       providerRequestId: finalize.requestId,
+      resultUrl: result.url,
+      width: result.width ?? processingRequest.expectedWidth,
+      height: result.height ?? processingRequest.expectedHeight,
+      byteSize: result.byteSize,
+      mimeType: result.mimeType ?? outputMimeType(processingRequest.outputFormat),
     });
-    const remote = await downloadRemoteObject(resultUrl);
-    const result = await encodeOutput(remote, processingRequest.outputFormat);
-    await uploadObject(
-      processingRequest.resultObject,
-      result,
-      contentTypeFor(processingRequest.resultObject),
-    );
-    await complete(processingRequest, finalize.requestId, result);
     await uploadObject(
       completionObject,
       Buffer.from(
@@ -493,57 +495,60 @@ async function processLocalFalFinalize(
   }
 }
 
-async function complete(
-  request: import("./types.js").ProcessingRequest,
-  providerRequestId: string,
-  result: Buffer,
-): Promise<void> {
-  const manifest = await buildPyramid({
-    jobId: request.jobId,
-    assetId: request.jobId,
-    source: request.resultObject,
-    destinationPrefix: request.resultPyramidPrefix,
-  });
-  await notifyApi({
-    jobId: request.jobId,
-    status: "ready",
-    providerRequestId,
-    resultObject: request.resultObject,
-    pyramidPrefix: request.resultPyramidPrefix,
-    width: manifest.width,
-    height: manifest.height,
-    maxLevel: manifest.maxLevel,
-    byteSize: result.byteLength,
-    storedBytes: result.byteLength + manifest.storedBytes,
-    mimeType: contentTypeFor(request.resultObject),
-  });
-}
+type ImageResult = {
+  url: string;
+  width?: number;
+  height?: number;
+  byteSize?: number;
+  mimeType?: string;
+};
 
-function findImageUrl(value: unknown): string | undefined {
-  if (typeof value === "string" && /^https?:\/\//.test(value)) return value;
-  if (Array.isArray(value)) return value.map(findImageUrl).find(Boolean);
-  if (value && typeof value === "object") {
-    for (const [key, nested] of Object.entries(value)) {
-      if (/image|url/i.test(key)) {
-        const found = findImageUrl(nested);
-        if (found) return found;
-      }
-    }
+function findImageResult(value: unknown): ImageResult | undefined {
+  if (Array.isArray(value)) return value.map(findImageResult).find(Boolean);
+  if (!value || typeof value !== "object") return undefined;
+
+  const record = value as Record<string, unknown>;
+  const candidate = [record.url, record.image_url].find(
+    (item): item is string => typeof item === "string" && isAllowedResultUrl(item),
+  );
+  if (candidate) {
+    const contentType = record.content_type ?? record.mime_type;
+    return {
+      url: candidate,
+      width: positiveInteger(record.width),
+      height: positiveInteger(record.height),
+      byteSize: positiveInteger(record.file_size ?? record.byte_size ?? record.size),
+      mimeType: typeof contentType === "string" ? contentType : undefined,
+    };
   }
-  return undefined;
+
+  for (const key of ["image", "images", "output", "result", "data"]) {
+    const found = findImageResult(record[key]);
+    if (found) return found;
+  }
+  return Object.values(record).map(findImageResult).find(Boolean);
 }
 
-async function encodeOutput(
-  contents: Buffer,
-  format: "png" | "jpeg" | "webp",
-): Promise<Buffer> {
-  const image = sharp(contents, {
-    limitInputPixels: false,
-    sequentialRead: true,
-  });
-  if (format === "jpeg")
-    return image.jpeg({ quality: 95, mozjpeg: true }).toBuffer();
-  if (format === "webp")
-    return image.webp({ lossless: true, effort: 4 }).toBuffer();
-  return image.png({ compressionLevel: 6 }).toBuffer();
+function isAllowedResultUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      (url.hostname === "fal.media" ||
+        url.hostname.endsWith(".fal.media") ||
+        url.hostname === "storage.googleapis.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function positiveInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
+function outputMimeType(format: "png" | "jpeg" | "webp"): string {
+  return format === "jpeg" ? "image/jpeg" : `image/${format}`;
 }

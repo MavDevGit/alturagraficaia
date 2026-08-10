@@ -437,9 +437,9 @@ export function StudioPage() {
   });
   const viewerReady = Boolean(
     sourceViewer.data?.ready &&
-    sourceViewer.data.max_level !== null &&
     resultViewer.data?.ready &&
-    resultViewer.data.max_level !== null,
+    sourceViewer.data.image_url &&
+    resultViewer.data.image_url,
   );
   const viewerPreparing = Boolean(completed) && !viewerReady;
   const downloadResult = useMutation({
@@ -636,7 +636,7 @@ export function StudioPage() {
                           ? "Subiendo originales y creando el trabajo…"
                         : currentJob.data?.status === "processing"
                           ? "Procesando con IA…"
-                          : "Generando mosaicos Deep Zoom…"}
+                          : "Preparando el resultado completo…"}
                     </Typography>
                   </Box>
                 )}

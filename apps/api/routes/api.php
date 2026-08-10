@@ -13,7 +13,7 @@ Route::post('/internal/image-callback', ImageCallbackController::class)
     ->name('internal.image-callback');
 
 Route::prefix('v1')->group(function (): void {
-    Route::get('/assets/{asset}/tiles/{level}/{tile}', [AssetController::class, 'tile'])->whereNumber('level')->name('assets.tile');
+    Route::get('/assets/{asset}/content', [AssetController::class, 'content'])->name('assets.content');
     Route::middleware('firebase')->group(function (): void {
         Route::get('/me', fn (Request $request) => $request->user()->only(['id', 'name', 'email', 'role', 'credit_balance', 'avatar_url']));
         Route::post('/uploads', UploadController::class)->middleware('throttle:uploads');

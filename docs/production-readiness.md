@@ -144,7 +144,7 @@ systemctl --no-pager --full status caddy php8.3-fpm postgresql \
 
 Además, valide login por correo y Google, rechazo de `/admin` a usuarios
 normales, un procesamiento real, devolución de créditos ante fallo, descarga y
-mosaicos por URL firmada, backup cifrado y restauración en una base aislada.
+resultados FAL por URL temporal, backup cifrado y restauración en una base aislada.
 Compruebe métricas de memoria/swap, almacenamiento y cuotas tras la primera carga.
 
 ## Controles de lanzamiento

@@ -41,6 +41,9 @@ export async function submitFalJob(
     headers: {
       Authorization: `Key ${config.FAL_KEY}`,
       "Content-Type": "application/json",
+      "X-Fal-Object-Lifecycle-Preference": falObjectLifecyclePreference(
+        request.resultExpiresInSeconds,
+      ),
     },
     body: JSON.stringify(buildFalInput(request, imageUrl)),
     signal: AbortSignal.timeout(30_000),
@@ -54,6 +57,10 @@ export async function submitFalJob(
   const payload = (await response.json()) as SubmitResult;
   if (!payload.request_id) throw new Error("FAL no devolvió request_id.");
   return payload.request_id;
+}
+
+export function falObjectLifecyclePreference(seconds: number): string {
+  return JSON.stringify({ expiration_duration_seconds: seconds });
 }
 
 export async function cancelFalJob(

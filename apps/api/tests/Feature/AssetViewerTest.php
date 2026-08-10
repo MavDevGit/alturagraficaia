@@ -6,40 +6,45 @@ use App\Models\User;
 use App\Services\QuotaService;
 use Illuminate\Support\Facades\Storage;
 
-it('returns a tokenized visible-tile template instead of the complete image', function (): void {
+it('returns one tokenized complete-image URL and serves a local original', function (): void {
     config()->set('altura.auth_driver', 'local');
     Storage::fake('local');
     $user = User::factory()->create(['firebase_uid' => 'viewer-user']);
     $asset = Asset::query()->create([
-        'user_id' => $user->id, 'kind' => 'result', 'status' => 'ready', 'storage_disk' => 'local',
-        'storage_path' => 'assets/result.png', 'tile_prefix' => 'tiles/result', 'mime_type' => 'image/png',
-        'byte_size' => 2048, 'width' => 8000, 'height' => 3152, 'max_level' => 13,
+        'user_id' => $user->id, 'kind' => 'original', 'status' => 'ready', 'storage_disk' => 'local',
+        'storage_path' => 'assets/original.png', 'mime_type' => 'image/png',
+        'byte_size' => 2048, 'width' => 8000, 'height' => 3152,
     ]);
-    Storage::disk('local')->put('tiles/result/image_files/13/0_0.webp', 'tile-data');
+    Storage::disk('local')->put($asset->storage_path, 'complete-image');
 
     $payload = $this->getJson("/api/v1/assets/{$asset->id}/viewer", ['Authorization' => 'Bearer local:viewer-user'])
-        ->assertOk()->assertJsonPath('tile_size', 512)->assertJsonPath('overlap', 1)->json();
-    expect($payload['tile_url'])->toContain('/tiles/{level}/{x}_{y}.webp')->not->toContain('/download');
+        ->assertOk()
+        ->assertJsonPath('mime_type', 'image/png')
+        ->assertJsonPath('ready', true)
+        ->assertJsonMissingPath('tile_url')
+        ->json();
 
-    $tileUrl = str_replace(['{level}', '{x}', '{y}'], ['13', '0', '0'], $payload['tile_url']);
-    $this->get($tileUrl)->assertOk()->assertHeader('Content-Type', 'image/webp');
+    expect($payload['image_url'])->toContain("/assets/{$asset->id}/content?token=")->not->toContain('/tiles/');
+    $this->get($payload['image_url'])->assertOk()->assertHeader('Content-Type', 'image/png');
 });
 
-it('continues serving pyramids created with the legacy sharp directory name', function (): void {
+it('redirects viewer content and downloads directly to the FAL result', function (): void {
     config()->set('altura.auth_driver', 'local');
-    Storage::fake('local');
-    $user = User::factory()->create(['firebase_uid' => 'legacy-viewer-user']);
+    $user = User::factory()->create(['firebase_uid' => 'fal-viewer-user']);
+    $resultUrl = 'https://v3b.fal.media/files/example/full-result.png';
     $asset = Asset::query()->create([
-        'user_id' => $user->id, 'kind' => 'result', 'status' => 'ready', 'storage_disk' => 'local',
-        'storage_path' => 'assets/result.png', 'tile_prefix' => 'tiles/legacy', 'mime_type' => 'image/png',
-        'byte_size' => 2048, 'width' => 1008, 'height' => 576, 'max_level' => 10,
+        'user_id' => $user->id, 'kind' => 'result', 'status' => 'ready', 'storage_disk' => 'fal',
+        'storage_path' => "external/result", 'external_url' => $resultUrl, 'mime_type' => 'image/png',
+        'byte_size' => 200_000_000, 'width' => 20000, 'height' => 10000,
     ]);
-    Storage::disk('local')->put('tiles/legacy/image.dzi_files/10/0_0.webp', 'legacy-tile');
 
-    $payload = $this->getJson("/api/v1/assets/{$asset->id}/viewer", ['Authorization' => 'Bearer local:legacy-viewer-user'])
+    $payload = $this->getJson("/api/v1/assets/{$asset->id}/viewer", ['Authorization' => 'Bearer local:fal-viewer-user'])
         ->assertOk()->json();
-    $tileUrl = str_replace(['{level}', '{x}', '{y}'], ['10', '0', '0'], $payload['tile_url']);
-    $this->get($tileUrl)->assertOk()->assertHeader('Content-Type', 'image/webp');
+    $this->get($payload['image_url'])->assertRedirect($resultUrl);
+    $this->get("/api/v1/assets/{$asset->id}/download", ['Authorization' => 'Bearer local:fal-viewer-user'])
+        ->assertRedirect($resultUrl);
+
+    expect(UsageQuota::query()->whereIn('resource', [QuotaService::GCS_CLASS_B, QuotaService::GCS_EGRESS])->exists())->toBeFalse();
 });
 
 it('reserves Class B and egress quotas atomically for GCS reads', function (): void {
@@ -56,23 +61,22 @@ it('reserves Class B and egress quotas atomically for GCS reads', function (): v
         ->and(UsageQuota::query()->where('resource', QuotaService::GCS_EGRESS)->value('used'))->toBe(1_048_576);
 });
 
-it('rejects a GCS tile before signing when the monthly read limit is reached', function (): void {
+it('rejects complete GCS content before signing when the monthly read limit is reached', function (): void {
     config()->set([
         'altura.auth_driver' => 'local',
         'altura.gcs_class_b_soft_limit' => 0,
         'altura.gcs_class_b_hard_limit' => 0,
     ]);
-    $user = User::factory()->create(['firebase_uid' => 'quota-tile-user']);
+    $user = User::factory()->create(['firebase_uid' => 'quota-content-user']);
     $asset = Asset::query()->create([
-        'user_id' => $user->id, 'kind' => 'result', 'status' => 'ready', 'storage_disk' => 'gcs',
-        'storage_path' => 'assets/result.png', 'tile_prefix' => 'tiles/result', 'mime_type' => 'image/png',
-        'byte_size' => 2048, 'width' => 1024, 'height' => 1024, 'max_level' => 10,
+        'user_id' => $user->id, 'kind' => 'original', 'status' => 'ready', 'storage_disk' => 'gcs',
+        'storage_path' => 'assets/original.png', 'mime_type' => 'image/png',
+        'byte_size' => 2048, 'width' => 1024, 'height' => 1024,
     ]);
-    $payload = $this->getJson("/api/v1/assets/{$asset->id}/viewer", ['Authorization' => 'Bearer local:quota-tile-user'])
+    $payload = $this->getJson("/api/v1/assets/{$asset->id}/viewer", ['Authorization' => 'Bearer local:quota-content-user'])
         ->assertOk()->json();
-    $tileUrl = str_replace(['{level}', '{x}', '{y}'], ['10', '0', '0'], $payload['tile_url']);
 
-    $this->getJson($tileUrl)->assertUnprocessable()->assertJsonValidationErrors('quota');
+    $this->getJson($payload['image_url'])->assertUnprocessable()->assertJsonValidationErrors('quota');
 
     expect(UsageQuota::query()->where('resource', QuotaService::GCS_CLASS_B)->exists())->toBeFalse()
         ->and(UsageQuota::query()->where('resource', QuotaService::GCS_EGRESS)->exists())->toBeFalse();
@@ -88,9 +92,9 @@ it('rolls back the GCS operation counter when a download exceeds the egress limi
     ]);
     $user = User::factory()->create(['firebase_uid' => 'quota-download-user']);
     $asset = Asset::query()->create([
-        'user_id' => $user->id, 'kind' => 'result', 'status' => 'ready', 'storage_disk' => 'gcs',
-        'storage_path' => 'assets/result.png', 'tile_prefix' => 'tiles/result', 'mime_type' => 'image/png',
-        'byte_size' => 2048, 'width' => 1024, 'height' => 1024, 'max_level' => 10,
+        'user_id' => $user->id, 'kind' => 'original', 'status' => 'ready', 'storage_disk' => 'gcs',
+        'storage_path' => 'assets/original.png', 'mime_type' => 'image/png',
+        'byte_size' => 2048, 'width' => 1024, 'height' => 1024,
     ]);
 
     $this->getJson("/api/v1/assets/{$asset->id}/download", ['Authorization' => 'Bearer local:quota-download-user'])

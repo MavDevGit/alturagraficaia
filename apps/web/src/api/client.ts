@@ -86,7 +86,6 @@ export async function download(path: string, filename: string): Promise<void> {
   try {
     response = await fetch(`${API_URL}${path}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal: AbortSignal.timeout(180_000),
     });
   } catch (reason) {
     throw new ApiError(
@@ -137,12 +136,11 @@ export type ViewerSource = {
   id: string;
   width: number;
   height: number;
-  tile_size: number;
-  overlap: number;
-  format: "webp";
-  max_level: number | null;
+  mime_type: string;
   ready: boolean;
-  tile_url: string;
+  image_url: string;
+  token_expires_in: number;
+  expires_at: string | null;
 };
 
 export type CurrentUser = {

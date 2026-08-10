@@ -303,7 +303,7 @@ export function HighResolutionCompareViewer({
         {(!before.ready || !after.ready) && (
           <Box className="tile-warning">
             <Typography variant="caption">
-              Preparando mosaicos de alta resolución…
+              Preparando la imagen completa…
             </Typography>
           </Box>
         )}

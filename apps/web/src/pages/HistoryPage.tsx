@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   Alert,
   Box,
@@ -15,7 +15,7 @@ import ImageNotSupportedRounded from "@mui/icons-material/ImageNotSupportedRound
 import AddPhotoAlternateRounded from "@mui/icons-material/AddPhotoAlternateRounded";
 import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
 import { Link } from "react-router";
-import { api, download, type Job, type ViewerSource } from "../api/client";
+import { api, download, type Job } from "../api/client";
 import { StudioShell } from "../components/StudioShell";
 
 type JobsPage = {
@@ -56,41 +56,10 @@ function extensionFor(job: Job): string {
 }
 
 function HistoryThumbnail({ job }: { job: Job }) {
-  const resultId = job.result_asset?.id;
-  const viewer = useQuery({
-    queryKey: ["history-viewer", resultId],
-    queryFn: () => api<ViewerSource>(`/assets/${resultId}/viewer`),
-    enabled: Boolean(resultId && job.status === "completed"),
-    staleTime: 60_000,
-  });
-  const source = viewer.data;
-  let thumbnail: string | null = null;
-  if (source?.ready && source.max_level !== null) {
-    const reduction = Math.max(
-      0,
-      Math.ceil(Math.log2(Math.max(source.width, source.height) / 512)),
-    );
-    const level = Math.max(0, source.max_level - reduction);
-    thumbnail = source.tile_url
-      .replace("{level}", String(level))
-      .replace("{x}", "0")
-      .replace("{y}", "0");
-  }
-
   return (
-    <Box className={`history-card-visual ${thumbnail ? "has-image" : ""}`}>
-      {thumbnail ? (
-        <img
-          src={thumbnail}
-          alt={`Resultado de ${toolLabels[job.tool]}`}
-          loading="lazy"
-        />
-      ) : (
-        <>
-          <ImageNotSupportedRounded />
-          <span>{displayedAsset(job).width}</span>
-        </>
-      )}
+    <Box className="history-card-visual">
+      <ImageNotSupportedRounded />
+      <span>{displayedAsset(job).width}</span>
     </Box>
   );
 }
@@ -137,8 +106,8 @@ export function HistoryPage() {
             <Typography variant="overline">Biblioteca temporal</Typography>
             <Typography variant="h1">Tus resultados recientes</Typography>
             <Typography color="text.secondary">
-              Originales, resultados y mosaicos se eliminan automáticamente a
-              los siete días.
+              Los originales y los enlaces temporales de resultados caducan
+              automáticamente a los siete días.
             </Typography>
           </Box>
           <Button

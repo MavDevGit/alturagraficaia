@@ -98,7 +98,7 @@ export function LoginPage() {
           </Typography>
           <Typography className="login-copy">
             Mejora, recorta y expande imágenes en un flujo profesional. Revisa
-            el resultado con mosaicos de alta resolución antes de descargar.
+            el resultado completo a alta resolución antes de descargar.
           </Typography>
         </Box>
         <Box

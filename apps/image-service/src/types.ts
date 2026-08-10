@@ -29,46 +29,22 @@ export const processingRequestSchema = z.object({
     .regex(/^[a-zA-Z0-9._/-]+$/),
   input: z.record(z.string(), z.unknown()),
   sourceObject: objectNameSchema,
-  sourcePyramidPrefix: objectNameSchema,
-  resultObject: objectNameSchema,
-  resultPyramidPrefix: objectNameSchema,
   outputFormat: z.enum(["png", "jpeg", "webp"]).default("png"),
+  resultExpiresInSeconds: z.number().int().min(60).max(2_592_000).default(604_800),
+  expectedWidth: z.number().int().positive().optional(),
+  expectedHeight: z.number().int().positive().optional(),
 });
 
 export type ProcessingRequest = z.infer<typeof processingRequestSchema>;
 
-export const pyramidRequestSchema = z.object({
-  jobId: z.string().uuid(),
-  assetId: z.string().uuid(),
-  source: objectNameSchema,
-  destinationPrefix: objectNameSchema,
-});
-
-export type PyramidRequest = z.infer<typeof pyramidRequestSchema>;
-
-export type PyramidManifest = {
-  width: number;
-  height: number;
-  tileSize: 512;
-  overlap: 1;
-  format: "webp";
-  maxLevel: number;
-  descriptor: string;
-  storedBytes: number;
-  objectCount: number;
-};
-
 export type ProcessingCallback = {
   jobId: string;
-  status: "processing" | "tiling" | "ready" | "failed";
+  status: "processing" | "ready" | "failed";
   providerRequestId?: string;
-  resultObject?: string;
-  pyramidPrefix?: string;
+  resultUrl?: string;
   width?: number;
   height?: number;
-  maxLevel?: number;
   byteSize?: number;
-  storedBytes?: number;
   mimeType?: string;
   error?: string;
 };
