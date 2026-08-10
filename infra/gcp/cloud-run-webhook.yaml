@@ -14,9 +14,9 @@ spec:
     spec:
       containerConcurrency: 10
       timeoutSeconds: 30
-      serviceAccountName: altura-image-webhook@PROJECT_ID.iam.gserviceaccount.com
+      serviceAccountName: altura-image-webhook@__PROJECT_ID__.iam.gserviceaccount.com
       containers:
-        - image: us-central1-docker.pkg.dev/PROJECT_ID/altura/image-service:IMAGE_TAG
+        - image: us-central1-docker.pkg.dev/__PROJECT_ID__/altura/image-service:IMAGE_TAG
           ports: [{ containerPort: 8080 }]
           resources:
             limits: { cpu: "1", memory: 512Mi }
@@ -28,7 +28,7 @@ spec:
           env:
             - { name: NODE_ENV, value: production }
             - { name: SERVICE_MODE, value: webhook }
-            - { name: GCP_PROJECT_ID, value: PROJECT_ID }
+            - { name: GCP_PROJECT_ID, value: __PROJECT_ID__ }
             - { name: GCS_BUCKET, value: BUCKET_NAME }
             - { name: TASKS_LOCATION, value: us-central1 }
             - { name: TASKS_QUEUE, value: altura-image-finalize }
@@ -36,7 +36,7 @@ spec:
             - { name: FINALIZE_AUDIENCE, value: "WORKER_URL" }
             - {
                 name: TASKS_INVOKER_SERVICE_ACCOUNT,
-                value: "altura-tasks-invoker@PROJECT_ID.iam.gserviceaccount.com",
+                value: "altura-tasks-invoker@__PROJECT_ID__.iam.gserviceaccount.com",
               }
             - name: INTERNAL_API_KEY
               valueFrom:

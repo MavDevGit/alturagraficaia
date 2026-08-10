@@ -14,9 +14,9 @@ spec:
     spec:
       containerConcurrency: 1
       timeoutSeconds: 900
-      serviceAccountName: altura-image-worker@PROJECT_ID.iam.gserviceaccount.com
+      serviceAccountName: altura-image-worker@__PROJECT_ID__.iam.gserviceaccount.com
       containers:
-        - image: us-central1-docker.pkg.dev/PROJECT_ID/altura/image-service:IMAGE_TAG
+        - image: us-central1-docker.pkg.dev/__PROJECT_ID__/altura/image-service:IMAGE_TAG
           ports: [{ containerPort: 8080 }]
           resources:
             limits: { cpu: "2", memory: 2Gi }
@@ -33,7 +33,7 @@ spec:
                 name: LOCAL_STORAGE_PATH,
                 value: "/tmp/altura-image-service",
               }
-            - { name: GCP_PROJECT_ID, value: PROJECT_ID }
+            - { name: GCP_PROJECT_ID, value: __PROJECT_ID__ }
             - { name: GCS_BUCKET, value: BUCKET_NAME }
             - { name: MAX_REMOTE_BYTES, value: "536870912" }
             - { name: TILE_UPLOAD_CONCURRENCY, value: "6" }

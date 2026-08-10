@@ -29,7 +29,7 @@ try {
   }
 
   $worker = Get-Content infra/gcp/cloud-run-service.yaml -Raw
-  $worker = $worker.Replace('PROJECT_ID', $ProjectId).Replace('BUCKET_NAME', $BucketName).Replace('IMAGE_TAG', $ImageTag)
+  $worker = $worker.Replace('__PROJECT_ID__', $ProjectId).Replace('BUCKET_NAME', $BucketName).Replace('IMAGE_TAG', $ImageTag)
   $worker = $worker.Replace('https://app.example.com/api/internal/image-callback', $CallbackUrl)
   [IO.File]::WriteAllText($WorkerRendered, $worker, (New-Object Text.UTF8Encoding($false)))
   & $Gcloud run services replace $WorkerRendered --region=$Region --project=$ProjectId --quiet
@@ -38,7 +38,7 @@ try {
   Assert-Gcloud 'consultar URL del worker'
 
   $webhook = Get-Content infra/gcp/cloud-run-webhook.yaml -Raw
-  $webhook = $webhook.Replace('PROJECT_ID', $ProjectId).Replace('BUCKET_NAME', $BucketName).Replace('IMAGE_TAG', $ImageTag).Replace('WORKER_URL', $WorkerUrl)
+  $webhook = $webhook.Replace('__PROJECT_ID__', $ProjectId).Replace('BUCKET_NAME', $BucketName).Replace('IMAGE_TAG', $ImageTag).Replace('WORKER_URL', $WorkerUrl)
   [IO.File]::WriteAllText($WebhookRendered, $webhook, (New-Object Text.UTF8Encoding($false)))
   & $Gcloud run services replace $WebhookRendered --region=$Region --project=$ProjectId --quiet
   Assert-Gcloud 'desplegar receptor público de webhook'
