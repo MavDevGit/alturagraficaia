@@ -1,7 +1,9 @@
 param(
   [Parameter(Mandatory=$true)][string]$ProjectId,
   [Parameter(Mandatory=$true)][string]$BackupBucketName,
-  [string]$FirebaseProjectId = "altura-grafica-ia-6faf1"
+  [string]$FirebaseProjectId = "altura-grafica-ia-6faf1",
+  [string]$Network = "default",
+  [string]$Subnet = "default"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,6 +53,19 @@ Ensure-ServiceAccount 'github-altura-deploy' 'GitHub Altura deploy'
 Ensure-Secret 'fal-key'
 Ensure-Secret 'backup-encryption-key'
 
+$Router = 'shared-vm-egress-router'
+$Nat = 'shared-vm-egress-nat'
+if (-not (Test-Gcloud @('compute', 'routers', 'describe', $Router, '--region', $Region, '--project', $ProjectId))) {
+  & $Gcloud compute routers create $Router --network=$Network --region=$Region --project=$ProjectId --quiet
+  Assert-Gcloud 'crear router de salida de la VM'
+}
+if (-not (Test-Gcloud @('compute', 'routers', 'nats', 'describe', $Nat, '--router', $Router, '--region', $Region, '--project', $ProjectId))) {
+  & $Gcloud compute routers nats create $Nat --router=$Router --region=$Region --project=$ProjectId `
+    --nat-custom-subnet-ip-ranges=$Subnet --auto-allocate-nat-external-ips `
+    --enable-endpoint-independent-mapping --min-ports-per-vm=64 --quiet
+  Assert-Gcloud 'crear salida IPv4 privada para FAL'
+}
+
 & $Gcloud storage buckets add-iam-policy-binding "gs://$BackupBucketName" --member="serviceAccount:$VmSa" --role=roles/storage.objectAdmin | Out-Null
 foreach ($secret in @('fal-key', 'backup-encryption-key')) {
   & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$VmSa" --role=roles/secretmanager.secretAccessor | Out-Null
@@ -68,4 +83,4 @@ Assert-Gcloud 'autorizar runtime de VM'
 & $Gcloud iam service-accounts add-iam-policy-binding $VmSa --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/iam.serviceAccountUser | Out-Null
 Assert-Gcloud 'autorizar despliegue de VM desde GitHub'
 
-Write-Host 'Infraestructura minima preparada: VM, FAL, PostgreSQL y backup cifrado.'
+Write-Host 'Infraestructura minima preparada: VM privada con salida FAL, PostgreSQL y backup cifrado.'

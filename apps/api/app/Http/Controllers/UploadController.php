@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UploadController extends Controller
 {
@@ -35,7 +36,15 @@ class UploadController extends Controller
             'image/webp' => 'webp',
             default => 'png',
         };
-        $ticket = $fal->initiateUpload("{$id}.{$extension}", $data['mime_type']);
+        try {
+            $ticket = $fal->initiateUpload("{$id}.{$extension}", $data['mime_type']);
+        } catch (Throwable $error) {
+            report($error);
+
+            return response()->json([
+                'message' => 'FAL no está disponible temporalmente. No se cargó la imagen ni se descontaron créditos.',
+            ], 503);
+        }
         $asset = Asset::query()->create([
             'id' => $id,
             'user_id' => $request->user()->id,

@@ -16,7 +16,7 @@ class FalClient
     {
         $response = $this->client()
             ->withHeader('X-Fal-Object-Lifecycle-Preference', $this->lifecycleHeader())
-            ->post('https://rest.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3', [
+            ->post('https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3', [
                 'file_name' => $fileName,
                 'content_type' => $mimeType,
             ])->throw()->json();
@@ -85,7 +85,7 @@ class FalClient
         }
 
         return Http::withHeader('Authorization', 'Key '.$key)
-            ->acceptJson()->asJson()->connectTimeout(10)->timeout(45)->retry(2, 250);
+            ->acceptJson()->asJson()->connectTimeout(5)->timeout(30)->retry(2, 250);
     }
 
     private function lifecycleHeader(): string

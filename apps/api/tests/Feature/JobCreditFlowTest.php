@@ -17,7 +17,7 @@ beforeEach(function (): void {
     config()->set(['altura.auth_driver' => 'local', 'altura.initial_credits' => 20, 'altura.fal_key' => 'test-fal-key-value']);
     Queue::fake();
     Http::fake([
-        'https://rest.fal.ai/storage/upload/initiate*' => Http::response([
+        'https://rest.alpha.fal.ai/storage/upload/initiate*' => Http::response([
             'upload_url' => 'https://upload.fal.media/direct-ticket',
             'file_url' => 'https://v3b.fal.media/files/example/source.png',
         ]),
@@ -60,6 +60,23 @@ it('creates a direct FAL upload ticket and completes it without local media stor
         ->and(UsageQuota::query()->exists())->toBeFalse();
     Http::assertSent(fn ($request) => str_contains($request->url(), '/storage/upload/initiate')
         && $request->hasHeader('X-Fal-Object-Lifecycle-Preference'));
+});
+
+it('returns a useful service unavailable response without creating assets or charging credits', function (): void {
+    Http::fake([
+        'https://rest.alpha.fal.ai/storage/upload/initiate*' => Http::failedConnection('FAL unavailable'),
+    ]);
+
+    $this->postJson('/api/v1/uploads/initiate', [
+        'file_name' => 'source.png', 'mime_type' => 'image/png', 'byte_size' => 2048,
+        'width' => 572, 'height' => 1024,
+    ], localHeaders('unavailable-user'))
+        ->assertServiceUnavailable()
+        ->assertJsonPath('message', 'FAL no está disponible temporalmente. No se cargó la imagen ni se descontaron créditos.');
+
+    expect(Asset::query()->exists())->toBeFalse()
+        ->and(CreditLedger::query()->exists())->toBeFalse()
+        ->and(User::query()->where('firebase_uid', 'unavailable-user')->value('credit_balance'))->toBe(20);
 });
 
 it('reserves credits and submits only JSON and the FAL source URL', function (): void {

@@ -14,6 +14,8 @@ PostgreSQL -- backup cifrado diario --> bucket privado de backups
 
 Laravel inicia una URL de carga firmada y devuelve solo sus metadatos al navegador. El navegador envia el binario directamente a FAL, sin pasar por PHP, la VM ni almacenamiento intermedio. Laravel confirma que la URL existe y crea el trabajo en FAL Queue. El webhook Ed25519 registra la URL final, dimensiones, tipo y estado de creditos de forma idempotente.
 
+La VM permanece sin IPv4 publica. Un Cloud NAT regional permite solo su trafico saliente de control hacia FAL (tickets, cola y cancelaciones); los binarios de imagen no atraviesan el NAT ni Laravel.
+
 El visor y la descarga usan la imagen completa del CDN de FAL. No se generan archivos derivados para comparar, por lo que el zoom por sectores es solo renderizado del visor en el navegador y no procesamiento del servidor.
 
 ## Historial y retencion
