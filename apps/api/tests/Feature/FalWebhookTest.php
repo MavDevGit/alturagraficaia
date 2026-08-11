@@ -76,6 +76,70 @@ it('accepts an immediate signed webhook before the queue request id is persisted
         ->and($job->fresh()->status)->toBe('completed');
 });
 
+it('stores the Bria transparent image contract', function (): void {
+    [, $job, $result] = falWebhookFixture();
+    $job->update(['tool' => 'background-remover', 'settings' => ['format' => 'png']]);
+    $result->update(['width' => 572, 'height' => 1024, 'mime_type' => 'image/png']);
+    $resultUrl = 'https://v3b.fal.media/files/example/transparent.png';
+
+    sendFalWebhook($job, [
+        'request_id' => 'provider-1', 'status' => 'OK',
+        'payload' => ['image' => [
+            'url' => $resultUrl,
+            'width' => 572,
+            'height' => 1024,
+            'content_type' => 'image/png',
+        ]],
+    ])->assertOk();
+
+    expect($job->fresh()->status)->toBe('completed')
+        ->and($result->fresh()->external_url)->toBe($resultUrl)
+        ->and($result->fresh()->mime_type)->toBe('image/png')
+        ->and($result->fresh()->width)->toBe(572)
+        ->and($result->fresh()->height)->toBe(1024);
+});
+
+it('stores the first FLUX outpainting image and preserves expected dimensions when metadata is omitted', function (): void {
+    [, $job, $result] = falWebhookFixture();
+    $job->update(['tool' => 'outpainting', 'settings' => [
+        'format' => 'png', 'expandTop' => 16, 'expandBottom' => 32,
+        'expandLeft' => 48, 'expandRight' => 64,
+    ]]);
+    $result->update(['width' => 684, 'height' => 1072, 'mime_type' => 'image/png']);
+    $resultUrl = 'https://v3b.fal.media/files/example/outpaint.png';
+
+    sendFalWebhook($job, [
+        'request_id' => 'provider-1', 'status' => 'OK',
+        'payload' => ['images' => [[
+            'url' => $resultUrl, 'content_type' => 'image/png',
+        ]]],
+    ])->assertOk();
+
+    expect($job->fresh()->status)->toBe('completed')
+        ->and($result->fresh()->external_url)->toBe($resultUrl)
+        ->and($result->fresh()->width)->toBe(684)
+        ->and($result->fresh()->height)->toBe(1072)
+        ->and($result->fresh()->mime_type)->toBe('image/png')
+        ->and($result->fresh()->byte_size)->toBe(0);
+});
+
+it('uses the useful provider detail when an engine rejects its input', function (): void {
+    [, $job] = falWebhookFixture();
+
+    sendFalWebhook($job, [
+        'request_id' => 'provider-1', 'status' => 'ERROR',
+        'error' => 'Invalid status code: 422',
+        'payload' => ['detail' => [[
+            'loc' => ['body', 'image_url'],
+            'msg' => 'FAL no pudo descargar la imagen original.',
+            'type' => 'file_download_error',
+        ]]],
+    ])->assertOk();
+
+    expect($job->fresh()->status)->toBe('failed')
+        ->and($job->fresh()->error)->toBe('FAL no pudo descargar la imagen original.');
+});
+
 it('rejects a webhook whose FAL request id does not belong to the job', function (): void {
     [, $job] = falWebhookFixture();
     sendFalWebhook($job, [

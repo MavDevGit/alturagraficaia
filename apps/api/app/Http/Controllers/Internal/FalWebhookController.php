@@ -46,7 +46,7 @@ class FalWebhookController extends Controller
             }
 
             if ($data['status'] === 'ERROR') {
-                $message = $data['error'] ?? $data['payload_error'] ?? 'FAL no pudo completar el trabajo.';
+                $message = $this->providerError($data);
                 $job->update(['status' => 'failed', 'error' => $message, 'finished_at' => now()]);
                 $job->resultAsset?->update(['status' => 'failed']);
                 $credits->refund($job, 'FAL no pudo completar el trabajo.');
@@ -55,7 +55,10 @@ class FalWebhookController extends Controller
                 return;
             }
 
-            $result = $this->findImageResult($data['payload'] ?? null, $fal);
+            $result = $this->findImageResult(
+                $this->resultPayload($job, $data['payload'] ?? null),
+                $fal,
+            );
             if (! $result || ! $job->resultAsset) {
                 throw ValidationException::withMessages([
                     'payload' => 'FAL no devolvió una imagen permitida.',
@@ -87,6 +90,39 @@ class FalWebhookController extends Controller
         }, 3);
 
         return response()->json(['accepted' => true]);
+    }
+
+    private function resultPayload(Job $job, mixed $payload): mixed
+    {
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        return match ($job->tool) {
+            'background-remover' => $payload['image'] ?? null,
+            'outpainting' => is_array($payload['images'] ?? null) ? ($payload['images'][0] ?? null) : null,
+            default => $payload,
+        };
+    }
+
+    /** @param array<string,mixed> $data */
+    private function providerError(array $data): string
+    {
+        $detail = is_array($data['payload'] ?? null) ? ($data['payload']['detail'] ?? null) : null;
+        if (is_string($detail) && $detail !== '') {
+            return mb_substr($detail, 0, 2000);
+        }
+        if (is_array($detail)) {
+            foreach ($detail as $item) {
+                if (is_array($item) && is_string($item['msg'] ?? null) && $item['msg'] !== '') {
+                    return mb_substr($item['msg'], 0, 2000);
+                }
+            }
+        }
+
+        $fallback = $data['error'] ?? $data['payload_error'] ?? 'FAL no pudo completar el trabajo.';
+
+        return mb_substr(is_string($fallback) ? $fallback : 'FAL no pudo completar el trabajo.', 0, 2000);
     }
 
     /** @return array{url:string,width?:int,height?:int,byte_size?:int,mime_type?:string}|null */

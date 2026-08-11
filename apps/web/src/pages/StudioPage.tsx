@@ -581,6 +581,7 @@ export function StudioPage() {
               <HighResolutionCompareViewer
                 before={sourceViewer.data}
                 after={resultViewer.data}
+                transparentAfter={tool === "background-remover"}
               />
             ) : assets.length ? (
               <Paper

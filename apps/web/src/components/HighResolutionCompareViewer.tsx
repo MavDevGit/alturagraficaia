@@ -25,9 +25,11 @@ type Mode = "slider" | "side";
 export function HighResolutionCompareViewer({
   before,
   after,
+  transparentAfter = false,
 }: {
   before: ViewerSource;
   after: ViewerSource;
+  transparentAfter?: boolean;
 }) {
   const beforeNode = useRef<HTMLDivElement>(null);
   const afterNode = useRef<HTMLDivElement>(null);
@@ -235,7 +237,11 @@ export function HighResolutionCompareViewer({
   };
 
   return (
-    <Box className="compare-viewer" data-mode={mode}>
+    <Box
+      className="compare-viewer"
+      data-mode={mode}
+      data-transparent-after={transparentAfter ? "true" : undefined}
+    >
       <Box ref={stageNode} className="compare-stage">
         <Box className="viewer-pane before-pane">
           <div ref={beforeNode} className="osd-host" />

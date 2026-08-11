@@ -135,6 +135,47 @@ it('persists only settings supported by each provider contract', function (): vo
     ], localHeaders('settings-user'))->assertUnprocessable()->assertJsonValidationErrors('settings.format');
 });
 
+it('submits the exact Bria and FLUX outpainting contracts', function (): void {
+    $asset = uploadedFalAsset($this, 'engine-contract-user');
+    $background = $this->postJson('/api/v1/jobs', [
+        'tool' => 'background-remover', 'source_asset_id' => $asset['id'],
+        'settings' => ['format' => 'png'],
+    ], localHeaders('engine-contract-user'))->assertCreated()->json();
+    $outpainting = $this->postJson('/api/v1/jobs', [
+        'tool' => 'outpainting', 'source_asset_id' => $asset['id'],
+        'settings' => [
+            'format' => 'jpeg', 'mode' => 'fast',
+            'expandTop' => 16, 'expandBottom' => 32, 'expandLeft' => 48, 'expandRight' => 64,
+        ],
+    ], localHeaders('engine-contract-user'))->assertCreated()->json();
+
+    (new ProcessImageJob($background['id']))->handle(app(FalClient::class));
+    (new ProcessImageJob($outpainting['id']))->handle(app(FalClient::class));
+
+    Http::assertSent(function ($request): bool {
+        return str_starts_with($request->url(), 'https://queue.fal.run/fal-ai/bria/background/remove?')
+            && $request->data() === [
+                'image_url' => 'https://v3b.fal.media/files/example/source.png',
+                'sync_mode' => false,
+            ];
+    });
+    Http::assertSent(function ($request): bool {
+        return str_starts_with($request->url(), 'https://queue.fal.run/fal-ai/flux-2-pro/outpaint?')
+            && $request->data() === [
+                'image_url' => 'https://v3b.fal.media/files/example/source.png',
+                'expand_top' => 16,
+                'expand_bottom' => 32,
+                'expand_left' => 48,
+                'expand_right' => 64,
+                'auto_crop' => false,
+                'mode' => 'fast',
+                'enable_safety_checker' => true,
+                'output_format' => 'jpeg',
+                'sync_mode' => false,
+            ];
+    });
+});
+
 it('fails and refunds a stale processing job', function (): void {
     $asset = uploadedFalAsset($this, 'stale-user');
     $job = $this->postJson('/api/v1/jobs', [
