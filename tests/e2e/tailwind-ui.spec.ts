@@ -135,19 +135,20 @@ test("preserves theme, keyboard focus and accessible Radix states", async ({
   await loginLocally(page);
 
   const accountTrigger = page.getByRole("button", { name: "Ayuda" });
-  await accountTrigger.click();
-  const darkMode = page.getByRole("menuitem", { name: "Modo oscuro" });
-  await expect(darkMode).toBeVisible();
-  await darkMode.click();
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await accountTrigger.click();
+  const lightMode = page.getByRole("menuitem", { name: "Modo claro" });
+  await expect(lightMode).toBeVisible();
+  await lightMode.click();
+  await expect(page.locator("html")).toHaveClass(/light/);
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("altura.theme")))
-    .toBe("dark");
+    .toBe("light");
 
   await page.reload();
-  await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect(page.locator("html")).toHaveClass(/light/);
   await accountTrigger.click();
-  await page.getByRole("menuitem", { name: "Modo claro" }).press("Escape");
+  await page.getByRole("menuitem", { name: "Modo oscuro" }).press("Escape");
   await expect(accountTrigger).toBeFocused();
 
   await accountTrigger.click();

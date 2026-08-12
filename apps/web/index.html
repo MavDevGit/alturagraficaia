@@ -3,22 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#050814" />
+    <meta name="theme-color" content="#13161C" />
     <meta
       name="description"
       content="Amplía, recorta y expande imágenes con IA desde un único taller visual."
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Altura Gráfica IA" />
+    <meta
+      property="og:description"
+      content="Más detalle. Más lienzo. Menos límites."
+    />
+    <meta property="og:image" content="https://alturagrafica.mavdev.cloud/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Altura Gráfica IA" />
+    <meta name="twitter:description" content="Más detalle. Más lienzo. Menos límites." />
+    <meta name="twitter:image" content="https://alturagrafica.mavdev.cloud/og.png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <script>
       (() => {
         try {
-          const mode = localStorage.getItem("altura.theme") === "dark" ? "dark" : "light";
+          const mode = localStorage.getItem("altura.theme") === "light" ? "light" : "dark";
           document.documentElement.classList.add(mode);
           document.documentElement.dataset.theme = mode;
           document.documentElement.style.colorScheme = mode;
         } catch {
-          document.documentElement.classList.add("light");
+          document.documentElement.classList.add("dark");
         }
       })();
     </script>

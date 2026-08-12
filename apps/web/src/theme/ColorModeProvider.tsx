@@ -5,12 +5,12 @@ import { ModeContext, type ColorMode } from "./context";
 const storageKey = "altura.theme";
 
 function storedMode(): ColorMode {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   try {
     const value = window.localStorage.getItem(storageKey);
-    return value === "dark" ? "dark" : "light";
+    return value === "light" ? "light" : "dark";
   } catch {
-    return "light";
+    return "dark";
   }
 }
 
