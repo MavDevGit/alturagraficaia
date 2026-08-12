@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Alert, Box, Button, CircularProgress } from "@mui/material";
+import { Alert, Box, Button, CircularProgress } from "./components/ui";
 import { Navigate, Route, Routes } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./auth/context";

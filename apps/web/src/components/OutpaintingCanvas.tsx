@@ -4,10 +4,12 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Box, Button, Chip, Typography } from "@mui/material";
-import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
-import CenterFocusStrongRounded from "@mui/icons-material/CenterFocusStrongRounded";
-import DragIndicatorRounded from "@mui/icons-material/DragIndicatorRounded";
+import {
+  ArrowRight as ArrowForwardRounded,
+  Focus as CenterFocusStrongRounded,
+  Grip as DragIndicatorRounded,
+} from "lucide-react";
+import { Box, Button, Chip, Typography } from "./ui";
 import type { Asset } from "../api/client";
 import {
   centeredMargins,
@@ -68,7 +70,7 @@ export function OutpaintingCanvas({
 
   const startDrag = (
     side: MarginSide,
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: ReactPointerEvent<HTMLElement>,
   ) => {
     const rect = stageRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -123,7 +125,7 @@ export function OutpaintingCanvas({
 
   const changeWithKeyboard = (
     side: MarginSide,
-    event: React.KeyboardEvent<HTMLButtonElement>,
+    event: React.KeyboardEvent<HTMLElement>,
   ) => {
     const visualIncreaseKey =
       (side === "left" && event.key === "ArrowLeft") ||

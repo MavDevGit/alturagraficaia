@@ -21,13 +21,15 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
-} from "@mui/material";
-import AddPhotoAlternateOutlined from "@mui/icons-material/AddPhotoAlternateOutlined";
-import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
-import AutoFixHighRounded from "@mui/icons-material/AutoFixHighRounded";
-import CheckRounded from "@mui/icons-material/CheckRounded";
-import CropFreeRounded from "@mui/icons-material/CropFreeRounded";
-import SettingsSuggestRounded from "@mui/icons-material/SettingsSuggestRounded";
+} from "../components/ui";
+import {
+  ArrowRight as ArrowForwardRounded,
+  Check as CheckRounded,
+  Expand as CropFreeRounded,
+  ImagePlus as AddPhotoAlternateOutlined,
+  SlidersHorizontal as SettingsSuggestRounded,
+  WandSparkles as AutoFixHighRounded,
+} from "lucide-react";
 import { useParams, useSearchParams } from "react-router";
 import {
   api,
@@ -1027,7 +1029,7 @@ function OutpaintingSettings({
           exclusive
           fullWidth
           value={canvasMode}
-          onChange={(_, value: CanvasMode | null) => {
+          onChange={(_, value) => {
             if (!value) return;
             if (value === "manual" && canvasMode !== "manual") {
               setMargins(effectiveMargins);

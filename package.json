@@ -47,10 +47,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@babel/runtime": "^7.29.7",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
     "@firebase/firestore": "^4.17.0",
-    "@mui/utils": "^9.2.0",
     "@playwright/test": "^1.55.0",
     "ajv": "^8.20.0",
     "common-tags": "^1.8.2",

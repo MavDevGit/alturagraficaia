@@ -9,11 +9,13 @@ import {
   Paper,
   Stack,
   Typography,
-} from "@mui/material";
-import DownloadRounded from "@mui/icons-material/DownloadRounded";
-import ImageNotSupportedRounded from "@mui/icons-material/ImageNotSupportedRounded";
-import AddPhotoAlternateRounded from "@mui/icons-material/AddPhotoAlternateRounded";
-import ArrowOutwardRounded from "@mui/icons-material/ArrowOutwardRounded";
+} from "../components/ui";
+import {
+  ArrowUpRight as ArrowOutwardRounded,
+  Download as DownloadRounded,
+  ImageOff as ImageNotSupportedRounded,
+  ImagePlus as AddPhotoAlternateRounded,
+} from "lucide-react";
 import { Link } from "react-router";
 import { api, download, type Job } from "../api/client";
 import { StudioShell } from "../components/StudioShell";

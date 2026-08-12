@@ -22,14 +22,16 @@ import {
   Tabs,
   TextField,
   Typography,
-} from "@mui/material";
-import AddCardRounded from "@mui/icons-material/AddCardRounded";
-import ManageAccountsRounded from "@mui/icons-material/ManageAccountsRounded";
-import KeyRounded from "@mui/icons-material/KeyRounded";
-import PeopleAltRounded from "@mui/icons-material/PeopleAltRounded";
-import MemoryRounded from "@mui/icons-material/MemoryRounded";
-import DataUsageRounded from "@mui/icons-material/DataUsageRounded";
-import AdminPanelSettingsRounded from "@mui/icons-material/AdminPanelSettingsRounded";
+} from "../components/ui";
+import {
+  ChartNoAxesCombined as DataUsageRounded,
+  Cpu as MemoryRounded,
+  CreditCard as AddCardRounded,
+  KeyRound as KeyRounded,
+  ShieldCheck as AdminPanelSettingsRounded,
+  UserCog as ManageAccountsRounded,
+  Users as PeopleAltRounded,
+} from "lucide-react";
 import { api, type CurrentUser } from "../api/client";
 import { StudioShell } from "../components/StudioShell";
 

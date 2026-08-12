@@ -5,7 +5,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from "react";
-import { Alert, Box, Button, Typography } from "@mui/material";
+import { Alert, Box, Button, Typography } from "./ui";
 
 export class AppBoundary extends Component<
   { children: ReactNode },

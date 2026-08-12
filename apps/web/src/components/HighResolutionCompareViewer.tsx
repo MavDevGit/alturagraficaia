@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import OpenSeadragon from "openseadragon";
 import {
+  BadgeCheck as VerifiedRounded,
+  Columns2 as SplitscreenRounded,
+  Focus as CenterFocusStrongRounded,
+  Maximize as FitScreenRounded,
+  MoveHorizontal as SwapHorizRounded,
+  ZoomIn as ZoomInRounded,
+  ZoomOut as ZoomOutRounded,
+} from "lucide-react";
+import {
   Box,
   Button,
   ButtonGroup,
@@ -9,14 +18,7 @@ import {
   Slider,
   Tooltip,
   Typography,
-} from "@mui/material";
-import CenterFocusStrongRounded from "@mui/icons-material/CenterFocusStrongRounded";
-import FitScreenRounded from "@mui/icons-material/FitScreenRounded";
-import SplitscreenRounded from "@mui/icons-material/SplitscreenRounded";
-import SwapHorizRounded from "@mui/icons-material/SwapHorizRounded";
-import ZoomInRounded from "@mui/icons-material/ZoomInRounded";
-import ZoomOutRounded from "@mui/icons-material/ZoomOutRounded";
-import VerifiedRounded from "@mui/icons-material/VerifiedRounded";
+} from "./ui";
 import type { ViewerSource } from "../api/client";
 import { createFullImageSource } from "./fullImageSource";
 
@@ -124,12 +126,16 @@ export function HighResolutionCompareViewer({
     const beforeViewer = OpenSeadragon({
       ...shared,
       element: beforeNode.current,
-      tileSources: createFullImageSource(before) as OpenSeadragon.TileSourceOptions,
+      tileSources: createFullImageSource(
+        before,
+      ) as OpenSeadragon.TileSourceOptions,
     });
     const afterViewer = OpenSeadragon({
       ...shared,
       element: afterNode.current,
-      tileSources: createFullImageSource(after) as OpenSeadragon.TileSourceOptions,
+      tileSources: createFullImageSource(
+        after,
+      ) as OpenSeadragon.TileSourceOptions,
       mouseNavEnabled: mode === "side",
     });
     viewers.current = { before: beforeViewer, after: afterViewer };
@@ -315,7 +321,11 @@ export function HighResolutionCompareViewer({
         )}
       </Box>
       <Box className="viewer-toolbar">
-        <ButtonGroup className="viewer-mode-switch" size="small" aria-label="Modo de comparación">
+        <ButtonGroup
+          className="viewer-mode-switch"
+          size="small"
+          aria-label="Modo de comparación"
+        >
           <Button
             variant={mode === "slider" ? "contained" : "outlined"}
             onClick={() => setMode("slider")}
@@ -357,6 +367,7 @@ export function HighResolutionCompareViewer({
         <Tooltip title="Ver archivo procesado al 100%">
           <Button
             size="small"
+            aria-label="Ver archivo procesado al 100%"
             onClick={actual}
             startIcon={<CenterFocusStrongRounded />}
           >

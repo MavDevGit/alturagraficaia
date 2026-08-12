@@ -10,11 +10,13 @@ import {
   Tabs,
   TextField,
   Typography,
-} from "@mui/material";
-import AutoAwesomeRounded from "@mui/icons-material/AutoAwesomeRounded";
-import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
-import Google from "@mui/icons-material/Google";
-import LockOutlined from "@mui/icons-material/LockOutlined";
+} from "../components/ui";
+import {
+  BadgeCheck as CheckCircleRounded,
+  LockKeyhole as LockOutlined,
+  Sparkles as AutoAwesomeRounded,
+} from "lucide-react";
+import { GoogleIcon as Google } from "../components/ui/GoogleIcon";
 import { Navigate } from "react-router";
 import { useAuth } from "../auth/context";
 

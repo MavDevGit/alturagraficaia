@@ -1,51 +1,42 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AppBar,
-  Box,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Toolbar,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import CollectionsRounded from "@mui/icons-material/CollectionsRounded";
-import CropFreeRounded from "@mui/icons-material/CropFreeRounded";
-import HistoryRounded from "@mui/icons-material/HistoryRounded";
-import ImageRounded from "@mui/icons-material/ImageRounded";
-import LightModeRounded from "@mui/icons-material/LightModeRounded";
-import DarkModeRounded from "@mui/icons-material/DarkModeRounded";
-import AdminPanelSettingsRounded from "@mui/icons-material/AdminPanelSettingsRounded";
-import LogoutRounded from "@mui/icons-material/LogoutRounded";
-import HelpOutlineRounded from "@mui/icons-material/HelpOutlineRounded";
+  CircleHelp,
+  Coins,
+  Expand,
+  History,
+  Images,
+  ImageUpscale,
+  LogOut,
+  Moon,
+  ShieldCheck,
+  Sparkles,
+  Sun,
+} from "lucide-react";
 import { NavLink, useLocation } from "react-router";
 import { api, type CurrentUser } from "../api/client";
 import { useAuth } from "../auth/context";
 import { useColorMode } from "../theme/context";
+import { cn } from "../lib/cn";
+import { DropdownMenu, IconButton, Tooltip } from "./ui";
 
 const tools = [
   {
     to: "/studio/upscaler",
     label: "Escalador",
     accessibleLabel: "Escalador IA",
-    icon: <ImageRounded />,
+    icon: ImageUpscale,
   },
   {
     to: "/studio/background-remover",
     label: "Quitar fondo",
     accessibleLabel: "Quitar fondo",
-    icon: <CollectionsRounded />,
+    icon: Images,
   },
   {
     to: "/studio/outpainting",
     label: "Expandir",
     accessibleLabel: "Expandir lienzo",
-    icon: <CropFreeRounded />,
+    icon: Expand,
   },
 ];
 
@@ -59,122 +50,98 @@ export function StudioShell({ children }: { children: React.ReactNode }) {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   return (
-    <Box className="app-shell">
-      <AppBar
-        component="header"
-        position="static"
-        color="inherit"
-        elevation={0}
-        className="topbar"
-      >
-        <Toolbar>
-          <Box className="brand-lockup">
-            <Box className="brand-mark compact" aria-hidden="true">
-              A
-            </Box>
-            <Box className="brand-copy">
-              <Typography>Altura Gráfica IA</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Taller de Luz Digital
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ flex: 1 }} />
-          <Typography className="credit-pill" variant="caption">
-            {me?.credit_balance ?? "—"} créditos
-          </Typography>
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand-lockup">
+          <span className="brand-mark compact" aria-hidden="true">
+            <Sparkles />
+          </span>
+          <div className="brand-copy">
+            <strong>Altura Gráfica IA</strong>
+            <span>Taller de Luz Digital</span>
+          </div>
+        </div>
+        <span className="credit-pill">
+          <Coins aria-hidden="true" /> {me?.credit_balance ?? "—"} créditos
+        </span>
+        <DropdownMenu.Root>
           <Tooltip title="Ayuda y opciones">
-            <IconButton
-              aria-label="Ayuda"
-              aria-haspopup="menu"
-              aria-expanded={Boolean(anchor)}
-              onClick={(event) => setAnchor(event.currentTarget)}
-            >
-              <HelpOutlineRounded />
-            </IconButton>
+            <DropdownMenu.Trigger asChild>
+              <IconButton aria-label="Ayuda" aria-haspopup="menu">
+                <CircleHelp aria-hidden="true" />
+              </IconButton>
+            </DropdownMenu.Trigger>
           </Tooltip>
-          <Menu
-            anchorEl={anchor}
-            open={Boolean(anchor)}
-            onClose={() => setAnchor(null)}
-            slotProps={{ paper: { className: "account-menu" } }}
-          >
-            <Box className="account-summary">
-              <Typography variant="subtitle2">
-                {me?.name ?? "Mi cuenta"}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {me?.email}
-              </Typography>
-            </Box>
-            <MenuItem
-              onClick={() => {
-                color.toggle();
-                setAnchor(null);
-              }}
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              align="end"
+              sideOffset={8}
+              className="account-menu"
             >
-              {color.mode === "light" ? (
-                <DarkModeRounded fontSize="small" />
-              ) : (
-                <LightModeRounded fontSize="small" />
+              <div className="account-summary">
+                <strong>{me?.name ?? "Mi cuenta"}</strong>
+                <span>{me?.email}</span>
+              </div>
+              <DropdownMenu.Separator className="menu-separator" />
+              <DropdownMenu.Item className="menu-item" onSelect={color.toggle}>
+                {color.mode === "light" ? <Moon /> : <Sun />}
+                {color.mode === "light" ? "Modo oscuro" : "Modo claro"}
+              </DropdownMenu.Item>
+              {me?.role === "admin" && (
+                <DropdownMenu.Item asChild>
+                  <NavLink className="menu-item" to="/admin">
+                    <ShieldCheck /> Administración
+                  </NavLink>
+                </DropdownMenu.Item>
               )}
-              {color.mode === "light" ? "Modo oscuro" : "Modo claro"}
-            </MenuItem>
-            {me?.role === "admin" && (
-              <MenuItem
-                component={NavLink}
-                to="/admin"
-                onClick={() => setAnchor(null)}
-              >
-                <AdminPanelSettingsRounded fontSize="small" /> Administración
-              </MenuItem>
-            )}
-            <MenuItem onClick={auth.logout}>
-              <LogoutRounded fontSize="small" /> Cerrar sesión
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
+              <DropdownMenu.Item className="menu-item" onSelect={auth.logout}>
+                <LogOut /> Cerrar sesión
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </header>
 
-      <Box className="shell-body">
-        <Box
-          component="nav"
-          className="tool-navigation"
-          aria-label="Herramientas"
-        >
-          <List>
-            {tools.map((tool) => (
-              <ListItemButton
-                key={tool.to}
-                component={NavLink}
-                to={tool.to}
-                aria-label={tool.accessibleLabel}
-                selected={pathname === tool.to}
+      <div className="shell-body">
+        <nav className="tool-navigation" aria-label="Herramientas">
+          <ul>
+            {tools.map((tool) => {
+              const Icon = tool.icon;
+              const active = pathname === tool.to;
+              return (
+                <li key={tool.to}>
+                  <NavLink
+                    to={tool.to}
+                    aria-label={tool.accessibleLabel}
+                    aria-current={active ? "page" : undefined}
+                    className={cn("tool-link", active && "is-active")}
+                  >
+                    <Icon aria-hidden="true" />
+                    <span>{tool.label}</span>
+                  </NavLink>
+                </li>
+              );
+            })}
+            <li>
+              <NavLink
+                to="/history"
+                aria-current={pathname === "/history" ? "page" : undefined}
+                className={cn(
+                  "tool-link",
+                  pathname === "/history" && "is-active",
+                )}
               >
-                <ListItemIcon>{tool.icon}</ListItemIcon>
-                <ListItemText primary={tool.label} />
-              </ListItemButton>
-            ))}
-            <ListItemButton
-              component={NavLink}
-              to="/history"
-              selected={pathname === "/history"}
-            >
-              <ListItemIcon>
-                <HistoryRounded />
-              </ListItemIcon>
-              <ListItemText primary="Historial" />
-            </ListItemButton>
-          </List>
-        </Box>
+                <History aria-hidden="true" />
+                <span>Historial</span>
+              </NavLink>
+            </li>
+          </ul>
+        </nav>
 
-        <Box component="main" className="shell-main">
-          {children}
-        </Box>
-      </Box>
-    </Box>
+        <main className="shell-main">{children}</main>
+      </div>
+    </div>
   );
 }
