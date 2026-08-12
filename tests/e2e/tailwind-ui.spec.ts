@@ -107,17 +107,17 @@ test("keeps the public landing separate from authentication and responsive", asy
     await page.setViewportSize(viewport);
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: /Más detalle.*Más lienzo.*Menos límites/ }),
+      page.getByRole("heading", { name: /Imágenes de alto impacto.*sin perder calidad/ }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Iniciar sesión" }),
+      page.getByRole("link", { name: "Probar ahora" }).first(),
     ).toHaveAttribute("href", "/login");
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(viewport.width);
   }
 
-  await page.getByRole("link", { name: "Iniciar sesión" }).click();
+  await page.getByRole("link", { name: "Probar ahora" }).first().click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(
     page.getByRole("heading", { name: "Qué bueno tenerte de vuelta" }),

@@ -3189,3 +3189,788 @@
   .results-visual { margin-inline: -0.45rem; }
   .marketing-final-cta { min-height: 24rem; }
 }
+
+/* Reference landing composition ------------------------------------------ */
+.reference-landing {
+  scroll-behavior: smooth;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.reference-container {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+}
+
+.reference-header {
+  position: sticky;
+  z-index: 50;
+  top: 0;
+  min-height: 4.0625rem;
+  border-bottom: 1px solid var(--marketing-line);
+  background: rgb(19 22 28 / 70%);
+  backdrop-filter: blur(20px);
+}
+
+.reference-header-inner {
+  display: flex;
+  width: 100%;
+  max-width: 80rem;
+  min-height: 4rem;
+  margin-inline: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 2rem;
+}
+
+.reference-brand,
+.reference-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reference-brand {
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.reference-brand-mark {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: none;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, var(--marketing-primary), var(--marketing-secondary));
+  color: #05251a;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  box-shadow: 0 8px 24px rgb(10 233 138 / 18%);
+}
+
+.reference-brand-mark-small {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.reference-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.reference-navigation > a:not(.reference-button) {
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--marketing-muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: color 160ms ease;
+}
+
+.reference-navigation > a:not(.reference-button):hover {
+  color: white;
+}
+
+.reference-button,
+.reference-button-secondary {
+  display: inline-flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  padding: 0 1.75rem;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5rem;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.reference-button {
+  background: linear-gradient(90deg, var(--marketing-primary), var(--marketing-secondary));
+  color: #05251a;
+  box-shadow: 0 10px 30px rgb(10 233 138 / 16%);
+}
+
+.reference-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.reference-button svg,
+.reference-button-secondary svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.reference-button-small {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.reference-button-large {
+  min-height: 3rem;
+  padding-inline: 2rem;
+  font-size: 1rem;
+}
+
+.reference-button-secondary {
+  border: 1px solid var(--marketing-line);
+  background: transparent;
+  color: white;
+}
+
+.reference-button-secondary:hover {
+  border-color: rgb(13 211 255 / 42%);
+  background: rgb(30 34 41 / 54%);
+}
+
+.reference-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 6rem 2rem 7rem;
+}
+
+.reference-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(13 211 255 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(13 211 255 / 7%) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  opacity: 0.6;
+  mask-image: linear-gradient(to bottom, black, transparent 96%);
+}
+
+.reference-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+}
+
+.reference-glow-primary {
+  top: -10rem;
+  left: 25%;
+  width: 36rem;
+  height: 36rem;
+  background: rgb(10 233 138 / 22%);
+}
+
+.reference-glow-secondary {
+  top: 6rem;
+  right: -8rem;
+  width: 30rem;
+  height: 30rem;
+  background: rgb(13 211 255 / 18%);
+}
+
+.reference-hero-grid {
+  position: relative;
+  display: grid;
+  align-items: center;
+  gap: 3.5rem;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+.reference-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--marketing-line);
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  background: rgb(30 34 41 / 60%);
+  color: var(--marketing-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  backdrop-filter: blur(8px);
+}
+
+.reference-pill svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--marketing-primary);
+}
+
+.reference-hero h1 {
+  margin: 1.5rem 0 0;
+  color: white;
+  font-size: 4.5rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+}
+
+.reference-hero h1 span {
+  background: linear-gradient(90deg, var(--marketing-primary), var(--marketing-secondary));
+  background-clip: text;
+  color: transparent;
+}
+
+.reference-hero-copy {
+  max-width: 36rem;
+  margin: 1.5rem 0 0;
+  color: var(--marketing-muted);
+  font-size: 1.25rem;
+  line-height: 1.625;
+}
+
+.reference-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2.25rem;
+}
+
+.reference-proof {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  margin: 2.25rem 0 0;
+  padding: 0;
+  color: var(--marketing-muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  list-style: none;
+}
+
+.reference-proof li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reference-proof svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--marketing-secondary);
+}
+
+.reference-hero-visual {
+  position: relative;
+}
+
+.reference-hero-visual > img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1.5rem;
+  object-fit: cover;
+  box-shadow:
+    0 26px 70px rgb(0 0 0 / 40%),
+    0 0 46px rgb(10 233 138 / 12%);
+}
+
+.reference-render-card {
+  position: absolute;
+  bottom: -1.5rem;
+  left: -1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgb(30 34 41 / 92%);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 38%);
+  backdrop-filter: blur(12px);
+}
+
+.reference-render-card > span {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: rgb(13 211 255 / 12%);
+  color: var(--marketing-secondary);
+}
+
+.reference-render-card svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.reference-render-card div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.reference-render-card strong {
+  color: white;
+  font-size: 0.875rem;
+}
+
+.reference-render-card small {
+  color: var(--marketing-muted);
+  font-size: 0.75rem;
+}
+
+.reference-stats-section {
+  border-block: 1px solid var(--marketing-line);
+  padding: 2.5rem 2rem;
+  background: rgb(30 34 41 / 30%);
+}
+
+.reference-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.reference-stats > div {
+  text-align: left;
+}
+
+.reference-stats dt {
+  margin-top: 0.25rem;
+  color: var(--marketing-muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.reference-stats dd {
+  margin: 0;
+  background: linear-gradient(90deg, var(--marketing-primary), var(--marketing-secondary));
+  background-clip: text;
+  color: transparent;
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 2.5rem;
+  letter-spacing: -0.04em;
+}
+
+.reference-features {
+  scroll-margin-top: 4.5rem;
+  padding: 7rem 2rem;
+}
+
+.reference-section-heading {
+  max-width: 42rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.reference-section-heading > p,
+.reference-kicker {
+  margin: 0;
+  color: var(--marketing-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.reference-section-heading h2,
+.reference-results-card h2,
+.reference-cta-card h2 {
+  margin: 1rem 0 0;
+  color: white;
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.reference-section-heading > span {
+  display: block;
+  margin-top: 1rem;
+  color: var(--marketing-muted);
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.reference-feature-grid,
+.reference-process-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin-top: 3.5rem;
+}
+
+.reference-feature-card {
+  min-height: 13.625rem;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(145deg, rgb(30 34 41 / 88%), rgb(19 22 28 / 74%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 2%);
+  transition: transform 300ms ease;
+}
+
+.reference-feature-card:hover {
+  transform: translateY(-0.25rem);
+}
+
+.reference-feature-icon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, rgb(10 233 138 / 20%), rgb(13 211 255 / 14%));
+  color: var(--marketing-secondary);
+}
+
+.reference-feature-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.reference-feature-card h3,
+.reference-process-grid h3 {
+  margin: 1.25rem 0 0;
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.75rem;
+  letter-spacing: -0.02em;
+}
+
+.reference-feature-card p,
+.reference-process-grid p {
+  margin: 0.5rem 0 0;
+  color: var(--marketing-muted);
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+.reference-process {
+  scroll-margin-top: 4.5rem;
+  padding: 0 2rem 7rem;
+}
+
+.reference-section-heading-compact h2 {
+  margin-top: 1rem;
+}
+
+.reference-process-grid {
+  margin-bottom: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reference-process-grid li {
+  min-height: 11.78125rem;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  background: rgb(30 34 41 / 40%);
+}
+
+.reference-process-grid li > span {
+  background: linear-gradient(90deg, var(--marketing-primary), var(--marketing-secondary));
+  background-clip: text;
+  color: transparent;
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 2.5rem;
+  letter-spacing: -0.04em;
+}
+
+.reference-process-grid h3 {
+  margin-top: 1rem;
+}
+
+.reference-results {
+  padding: 0 2rem 7rem;
+}
+
+.reference-results-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1.5rem;
+  padding: 4rem;
+  background: rgb(30 34 41 / 40%);
+}
+
+.reference-results-glow {
+  position: absolute;
+  top: 0;
+  left: -6rem;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 50%;
+  background: rgb(10 233 138 / 12%);
+  filter: blur(110px);
+}
+
+.reference-results-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 4rem;
+}
+
+.reference-results-card h2 {
+  max-width: 28rem;
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
+.reference-results-copy {
+  margin: 1rem 0 0;
+  color: var(--marketing-muted);
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+.reference-results-card ul {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  color: var(--marketing-muted);
+  font-size: 0.875rem;
+  list-style: none;
+}
+
+.reference-results-card li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reference-results-card li svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--marketing-secondary);
+}
+
+.reference-results-card img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1rem;
+  object-fit: cover;
+  box-shadow:
+    0 22px 60px rgb(0 0 0 / 32%),
+    0 0 38px rgb(13 211 255 / 10%);
+}
+
+.reference-cta-section {
+  padding: 0 2rem 6rem;
+}
+
+.reference-cta-card {
+  position: relative;
+  max-width: 56rem;
+  min-height: 19.875rem;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid var(--marketing-line);
+  border-radius: 1.5rem;
+  padding: 3.5rem;
+  background: linear-gradient(135deg, rgb(10 233 138 / 16%), rgb(30 34 41 / 92%) 52%, rgb(13 211 255 / 13%));
+  text-align: center;
+}
+
+.reference-cta-card > div:last-child {
+  position: relative;
+}
+
+.reference-cta-card h2 {
+  margin-top: 0;
+  line-height: 1;
+}
+
+.reference-cta-card p {
+  max-width: 36rem;
+  margin: 1rem auto 0;
+  color: var(--marketing-muted);
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+.reference-cta-card .reference-button {
+  margin-top: 2.25rem;
+}
+
+.reference-footer {
+  border-top: 1px solid var(--marketing-line);
+  padding: 2.5rem 2rem;
+}
+
+.reference-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.reference-footer-brand strong {
+  color: white;
+  font-size: 0.875rem;
+  letter-spacing: -0.02em;
+}
+
+.reference-footer p,
+.reference-footer-links {
+  margin: 0;
+  color: var(--marketing-muted);
+  font-size: 0.875rem;
+}
+
+.reference-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.reference-footer-links a {
+  transition: color 160ms ease;
+}
+
+.reference-footer-links a:hover {
+  color: white;
+}
+
+@media (max-width: 63.9375rem) {
+  .reference-hero-grid,
+  .reference-results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-hero h1 {
+    font-size: 3.75rem;
+  }
+
+  .reference-hero-visual {
+    width: min(100%, 44rem);
+    margin-inline: auto;
+  }
+
+  .reference-feature-grid,
+  .reference-process-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reference-results-card {
+    padding: 3rem;
+  }
+}
+
+@media (max-width: 39.9375rem) {
+  .reference-header-inner {
+    padding-inline: 1rem;
+  }
+
+  .reference-brand {
+    font-size: 0.875rem;
+  }
+
+  .reference-navigation > a:not(.reference-button) {
+    display: none;
+  }
+
+  .reference-button-small {
+    min-height: 2.5rem;
+    padding-inline: 0.8rem;
+    font-size: 0.75rem;
+  }
+
+  .reference-button-small svg {
+    display: none;
+  }
+
+  .reference-hero {
+    padding: 4rem 1rem 5rem;
+  }
+
+  .reference-hero-grid {
+    gap: 3.5rem;
+  }
+
+  .reference-hero h1 {
+    font-size: 2.25rem;
+  }
+
+  .reference-hero-copy {
+    font-size: 1.125rem;
+  }
+
+  .reference-render-card {
+    display: none;
+  }
+
+  .reference-stats-section,
+  .reference-features,
+  .reference-process,
+  .reference-results,
+  .reference-cta-section,
+  .reference-footer {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .reference-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reference-stats > div {
+    text-align: center;
+  }
+
+  .reference-features {
+    padding-block: 5rem;
+  }
+
+  .reference-section-heading h2,
+  .reference-cta-card h2 {
+    font-size: 1.875rem;
+  }
+
+  .reference-feature-grid,
+  .reference-process-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reference-process,
+  .reference-results {
+    padding-bottom: 5rem;
+  }
+
+  .reference-results-card {
+    padding: 3rem 1.5rem;
+  }
+
+  .reference-results-card h2 {
+    font-size: 1.875rem;
+  }
+
+  .reference-cta-section {
+    padding-bottom: 6rem;
+  }
+
+  .reference-cta-card {
+    min-height: auto;
+    padding: 3.5rem 2rem;
+  }
+
+  .reference-footer-inner {
+    flex-direction: column;
+    text-align: center;
+  }
+}

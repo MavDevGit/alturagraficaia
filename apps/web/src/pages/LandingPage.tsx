@@ -2,208 +2,222 @@ import {
   ArrowRight,
   Check,
   Crop,
-  Download,
-  Expand,
   History,
-  ImageUp,
-  ScanSearch,
+  Image as ImageIcon,
+  Maximize,
   Sparkles,
-  Upload,
-  WandSparkles,
+  Zap,
 } from "lucide-react";
 import { Link } from "react-router";
-import { useAuth } from "../auth/context";
 import landingHero from "../assets/landing-hero.jpg";
 import upscaleDemo from "../assets/upscale-demo.jpg";
+import { useAuth } from "../auth/context";
 
-const tools = [
+const features = [
   {
-    icon: ImageUp,
+    icon: ImageIcon,
     title: "Escalador IA",
-    copy: "Amplía imágenes hasta 10× y reconstruye detalle para entregas de alta resolución.",
-    tag: "Hasta 10×",
+    copy: "Amplía fotos e ilustraciones hasta 10× conservando textura y bordes nítidos. Listo para impresión.",
   },
   {
     icon: Crop,
     title: "Quitar fondo",
-    copy: "Separa el sujeto con transparencia real y conserva bordes complejos con precisión.",
-    tag: "PNG transparente",
+    copy: "Recorte automático con transparencia real. Conserva cabello y bordes difíciles en segundos.",
   },
   {
-    icon: Expand,
+    icon: Maximize,
     title: "Expandir lienzo",
-    copy: "Extiende la composición por cualquier borde con un relleno visualmente coherente.",
-    tag: "Outpainting",
+    copy: "Añade margen por cualquier borde y rellena el espacio nuevo con outpainting coherente.",
   },
   {
     icon: History,
-    title: "Historial organizado",
-    copy: "Vuelve a tus resultados recientes, revisa dimensiones y descarga sin repetir el flujo.",
-    tag: "7 días",
+    title: "Historial",
+    copy: "Tus resultados organizados con dimensiones, créditos consumidos y descarga directa.",
   },
 ];
 
 const steps = [
-  { icon: Upload, title: "Sube", copy: "Arrastra una imagen PNG, JPG o WebP." },
-  { icon: ScanSearch, title: "Configura", copy: "Define escala, formato y fidelidad." },
-  { icon: WandSparkles, title: "Procesa", copy: "La IA genera el resultado y conserva el contexto." },
-  { icon: Download, title: "Descarga", copy: "Inspecciona el detalle y exporta el archivo." },
+  { title: "Sube", copy: "Arrastra tu imagen en PNG, JPG o WebP." },
+  { title: "Configura", copy: "Elige factor, fidelidad y formato de salida." },
+  { title: "Procesa", copy: "El motor IA reconstruye detalle real, no ruido." },
+  { title: "Descarga", copy: "Exporta en alta resolución al instante." },
 ];
 
 export function LandingPage() {
   const { user } = useAuth();
   const appPath = user ? "/studio/upscaler" : "/login";
-  const actionLabel = user ? "Ir al estudio" : "Empezar a crear";
 
   return (
-    <div className="marketing-page">
-      <header className="marketing-header">
-        <Link className="marketing-brand" to="/" aria-label="Altura Gráfica IA, inicio">
-          <span className="marketing-brand-mark"><Sparkles aria-hidden="true" /></span>
-          <span>Altura Gráfica <strong>IA</strong></span>
-        </Link>
-        <nav className="marketing-nav" aria-label="Navegación principal">
-          <a href="#herramientas">Herramientas</a>
-          <a href="#proceso">Cómo funciona</a>
-          <a href="#resultados">Resultados</a>
-        </nav>
-        <Link className="marketing-header-cta" to={appPath}>
-          {user ? "Ir al estudio" : "Iniciar sesión"}<ArrowRight aria-hidden="true" />
-        </Link>
+    <div className="marketing-page reference-landing">
+      <header className="reference-header">
+        <div className="reference-header-inner">
+          <Link className="reference-brand" to="/" aria-label="Altura Gráfica IA">
+            <span className="reference-brand-mark">A</span>
+            <span>Altura Gráfica IA</span>
+          </Link>
+          <nav className="reference-navigation" aria-label="Principal">
+            <a href="#caracteristicas">Características</a>
+            <a href="#proceso">Cómo funciona</a>
+            <Link className="reference-button reference-button-small" to={appPath}>
+              Probar ahora <ArrowRight aria-hidden="true" />
+            </Link>
+          </nav>
+        </div>
       </header>
 
       <main>
-        <section className="marketing-hero" aria-labelledby="hero-title">
-          <div className="hero-grid" aria-hidden="true" />
-          <div className="hero-glow hero-glow-violet" aria-hidden="true" />
-          <div className="hero-glow hero-glow-cyan" aria-hidden="true" />
-          <div className="marketing-hero-copy">
-            <p className="marketing-eyebrow"><Sparkles aria-hidden="true" /> Taller de imagen impulsado por IA</p>
-            <h1 id="hero-title">
-              Más detalle.<br />
-              Más lienzo.<br />
-              <span>Menos límites.</span>
-            </h1>
-            <p className="marketing-lead">
-              Amplía, recorta y expande imágenes desde un único espacio de trabajo.
-              Hecho para creadores que necesitan resultados listos para entregar.
-            </p>
-            <div className="marketing-actions">
-              <Link className="marketing-primary" to={appPath}>
-                {actionLabel}<ArrowRight aria-hidden="true" />
-              </Link>
-              <a className="marketing-secondary" href="#herramientas">Explorar herramientas</a>
-            </div>
-            <ul className="marketing-proof" aria-label="Ventajas principales">
-              <li><Check aria-hidden="true" /> Flujo claro y guiado</li>
-              <li><Check aria-hidden="true" /> Coste visible antes de procesar</li>
-              <li><Check aria-hidden="true" /> Comparación a alta resolución</li>
-            </ul>
-          </div>
-
-          <div className="marketing-hero-visual">
-            <div className="hero-window">
-              <div className="hero-window-bar">
-                <span /><span /><span />
-                <em>Altura Gráfica IA · Escalador</em>
+        <section className="reference-hero">
+          <div className="reference-grid-bg" aria-hidden="true" />
+          <div className="reference-glow reference-glow-primary" aria-hidden="true" />
+          <div className="reference-glow reference-glow-secondary" aria-hidden="true" />
+          <div className="reference-container reference-hero-grid">
+            <div>
+              <div className="reference-pill">
+                <Sparkles aria-hidden="true" />
+                Motor de imagen impulsado por IA
               </div>
-              <img src={landingHero} alt="Composición digital de imágenes ampliadas con inteligencia artificial" />
-              <div className="hero-window-shine" aria-hidden="true" />
+              <h1>
+                Imágenes de <span>alto impacto</span>
+                <br />sin perder calidad
+              </h1>
+              <p className="reference-hero-copy">
+                Escalado inteligente, recorte automático y expansión de lienzo
+                en una interfaz clara. Diseñado para creadores, equipos de
+                producto y estudios visuales.
+              </p>
+              <div className="reference-hero-actions">
+                <Link className="reference-button" to={appPath}>
+                  Probar ahora <ArrowRight aria-hidden="true" />
+                </Link>
+                <a className="reference-button-secondary" href="#caracteristicas">
+                  Ver características
+                </a>
+              </div>
+              <ul className="reference-proof">
+                <li><Check aria-hidden="true" /> Sin tarjeta de crédito</li>
+                <li><Check aria-hidden="true" /> 2 créditos por imagen</li>
+                <li><Check aria-hidden="true" /> Resultados en segundos</li>
+              </ul>
             </div>
-            <div className="hero-status-card">
-              <span><WandSparkles aria-hidden="true" /></span>
-              <div><strong>Resultado listo</strong><small>Detalle reconstruido · Alta resolución</small></div>
-              <Check aria-hidden="true" />
-            </div>
-            <div className="hero-format-card" aria-hidden="true">
-              <strong>4×</strong><span>PNG</span>
-            </div>
-          </div>
-        </section>
-
-        <dl className="marketing-stats" aria-label="Capacidades del producto">
-          <div><dt>Ampliación máxima</dt><dd>10×</dd></div>
-          <div><dt>Herramientas creativas</dt><dd>3</dd></div>
-          <div><dt>Flujo de trabajo</dt><dd>4 pasos</dd></div>
-          <div><dt>Historial disponible</dt><dd>7 días</dd></div>
-        </dl>
-
-        <section className="marketing-section" id="herramientas" aria-labelledby="tools-title">
-          <div className="section-heading">
-            <p className="section-kicker">Herramientas conectadas</p>
-            <h2 id="tools-title">Todo el flujo visual, en un solo lugar.</h2>
-            <p>Cambia de tarea sin perder el contexto ni salir del estudio.</p>
-          </div>
-          <div className="tool-grid">
-            {tools.map(({ icon: Icon, title, copy, tag }, index) => (
-              <article className={`tool-card tool-card-${index + 1}`} key={title}>
-                <div className="tool-card-top">
-                  <span className="tool-icon"><Icon aria-hidden="true" /></span>
-                  <span className="tool-tag">{tag}</span>
+            <div className="reference-hero-visual">
+              <img
+                src={landingHero}
+                alt="Visual abstracto de imágenes ampliadas por inteligencia artificial"
+              />
+              <div className="reference-render-card">
+                <span><Zap aria-hidden="true" /></span>
+                <div>
+                  <strong>Render en ~6 segundos</strong>
+                  <small>Escalado 4× · 4096 px</small>
                 </div>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-                <span className="tool-index">0{index + 1}</span>
-              </article>
-            ))}
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="marketing-process" id="proceso" aria-labelledby="process-title">
-          <div className="section-heading section-heading-centered">
-            <p className="section-kicker">Cómo funciona</p>
-            <h2 id="process-title">De archivo a resultado, sin fricción.</h2>
-            <p>Cuatro pasos reconocibles mantienen el control en tus manos.</p>
-          </div>
-          <ol className="process-list">
-            {steps.map(({ icon: Icon, title, copy }, index) => (
-              <li key={title}>
-                <span className="process-number">0{index + 1}</span>
-                <span className="process-icon"><Icon aria-hidden="true" /></span>
-                <h3>{title}</h3>
-                <p>{copy}</p>
-              </li>
-            ))}
-          </ol>
+        <section className="reference-stats-section">
+          <dl className="reference-container reference-stats">
+            <div><dt>Ampliación máxima</dt><dd>10×</dd></div>
+            <div><dt>Tiempo por imagen</dt><dd>~6s</dd></div>
+            <div><dt>Herramientas IA</dt><dd>4</dd></div>
+            <div><dt>Créditos por render</dt><dd>2</dd></div>
+          </dl>
         </section>
 
-        <section className="results-section" id="resultados" aria-labelledby="results-title">
-          <div className="results-copy">
-            <p className="section-kicker">El detalle decide</p>
-            <h2 id="results-title">Inspecciona la mejora antes de descargar.</h2>
-            <p>
-              El visor comparativo mantiene el original y el resultado lado a lado,
-              con zoom de alta resolución para comprobar bordes, textura y nitidez.
-            </p>
-            <ul>
-              <li><Check aria-hidden="true" /> Factores de ampliación de 2× a 10×</li>
-              <li><Check aria-hidden="true" /> Control de fidelidad y formato de salida</li>
-              <li><Check aria-hidden="true" /> Resultado completo antes de descargar</li>
-            </ul>
-            <Link className="marketing-text-link" to={appPath}>{actionLabel}<ArrowRight aria-hidden="true" /></Link>
+        <section className="reference-features" id="caracteristicas">
+          <div className="reference-container">
+            <div className="reference-section-heading">
+              <p>Herramientas</p>
+              <h2>Todo el flujo en un solo lugar</h2>
+              <span>Cuatro funciones conectadas: sube, configura, procesa y descarga.</span>
+            </div>
+            <div className="reference-feature-grid">
+              {features.map(({ icon: Icon, title, copy }) => (
+                <article className="reference-feature-card" key={title}>
+                  <span className="reference-feature-icon"><Icon aria-hidden="true" /></span>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </article>
+              ))}
+            </div>
           </div>
-          <figure className="results-visual">
-            <img src={upscaleDemo} alt="Comparación de una fotografía antes y después de ampliarla con IA" />
-            <figcaption><span>Antes</span><span>Después</span></figcaption>
-          </figure>
         </section>
 
-        <section className="marketing-final-cta">
-          <div className="final-orbit" aria-hidden="true" />
-          <Sparkles aria-hidden="true" />
-          <h2>Tu próxima imagen puede llegar más lejos.</h2>
-          <p>Entra al taller, elige una herramienta y transforma tu primer archivo.</p>
-          <Link className="marketing-primary" to={appPath}>{actionLabel}<ArrowRight aria-hidden="true" /></Link>
+        <section className="reference-process" id="proceso">
+          <div className="reference-container">
+            <div className="reference-section-heading reference-section-heading-compact">
+              <p>Cómo funciona</p>
+              <h2>Cuatro pasos, cero fricción</h2>
+            </div>
+            <ol className="reference-process-grid">
+              {steps.map(({ title, copy }, index) => (
+                <li key={title}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <h3>{title}</h3>
+                  <p>{copy}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="reference-results">
+          <div className="reference-container">
+            <div className="reference-results-card">
+              <div className="reference-results-glow" aria-hidden="true" />
+              <div className="reference-results-grid">
+                <div>
+                  <p className="reference-kicker">Resultados reales</p>
+                  <h2>De borroso a nítido en segundos</h2>
+                  <p className="reference-results-copy">
+                    El escalador IA recupera detalle y textura incluso en
+                    ampliaciones grandes. Compara el original con el resultado
+                    procesado.
+                  </p>
+                  <ul>
+                    <li><Check aria-hidden="true" /> Hasta 10× de ampliación</li>
+                    <li><Check aria-hidden="true" /> Control de fidelidad de textura</li>
+                    <li><Check aria-hidden="true" /> Exporta en PNG, JPG o WebP</li>
+                  </ul>
+                </div>
+                <img
+                  src={upscaleDemo}
+                  alt="Comparativa antes y después de ampliar una imagen con IA"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="reference-cta-section">
+          <div className="reference-cta-card">
+            <div className="reference-grid-bg" aria-hidden="true" />
+            <div>
+              <h2>Empieza a editar en segundos</h2>
+              <p>
+                Sin instalaciones ni configuración. Sube tu primera imagen y
+                descubre la diferencia.
+              </p>
+              <Link className="reference-button reference-button-large" to={appPath}>
+                Probar Altura Gráfica IA <ArrowRight aria-hidden="true" />
+              </Link>
+            </div>
+          </div>
         </section>
       </main>
 
-      <footer className="marketing-footer">
-        <Link className="marketing-brand" to="/">
-          <span className="marketing-brand-mark"><Sparkles aria-hidden="true" /></span>
-          <span>Altura Gráfica <strong>IA</strong></span>
-        </Link>
-        <p>© 2026 Altura Gráfica IA. Taller de imagen inteligente.</p>
-        <div><a href="#herramientas">Herramientas</a><Link to={appPath}>Acceder</Link></div>
+      <footer className="reference-footer">
+        <div className="reference-container reference-footer-inner">
+          <div className="reference-footer-brand">
+            <span className="reference-brand-mark reference-brand-mark-small">A</span>
+            <strong>Altura Gráfica IA</strong>
+          </div>
+          <p>© 2026 Altura Gráfica IA. Todos los derechos reservados.</p>
+          <div className="reference-footer-links">
+            <a href="#caracteristicas">Características</a>
+            <Link to={appPath}>App</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );
