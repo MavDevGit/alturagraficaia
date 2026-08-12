@@ -11,11 +11,10 @@ import {
   TextField,
   Typography,
 } from "../components/ui";
-import { ArrowLeft, Check, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowLeft, LockKeyhole } from "lucide-react";
 import { GoogleIcon as Google } from "../components/ui/GoogleIcon";
 import { Link, Navigate } from "react-router";
 import { useAuth } from "../auth/context";
-import landingHero from "../assets/landing-hero.jpg";
 
 export function LoginPage() {
   const auth = useAuth();
@@ -80,39 +79,32 @@ export function LoginPage() {
 
   return (
     <Box className="login-page">
-      <Box className="login-story">
-        <Link className="login-back" to="/"><ArrowLeft aria-hidden="true" /> Volver al inicio</Link>
-        <Link className="login-brand" to="/">
-          <span className="marketing-brand-mark"><Sparkles aria-hidden="true" /></span>
-          <span>Altura Gráfica <strong>IA</strong></span>
-        </Link>
-        <Box className="login-message">
-          <Typography variant="overline">Tu taller creativo</Typography>
-          <Typography variant="h1">Convierte cada píxel en una pieza lista para entregar.</Typography>
-          <Typography className="login-copy">
-            Mejora, recorta y expande imágenes con herramientas de IA conectadas en un flujo profesional.
-          </Typography>
-        </Box>
-        <Box className="login-preview">
-          <img src={landingHero} alt="Imágenes procesadas y ampliadas con inteligencia artificial" />
-          <span className="login-preview-badge"><Sparkles aria-hidden="true" /> Tres herramientas. Un solo estudio.</span>
-        </Box>
-        <Box className="login-proof">
-          {["Comparación a alta resolución", "Coste visible antes de procesar", "Historial de resultados"].map((item) => (
-            <Box key={item}><Check aria-hidden="true" /><Typography variant="body2">{item}</Typography></Box>
-          ))}
+      <Box className="login-grid-bg" aria-hidden="true" />
+      <Box className="login-glow login-glow-primary" aria-hidden="true" />
+      <Box className="login-glow login-glow-secondary" aria-hidden="true" />
+
+      <Box component="header" className="login-header">
+        <Box className="login-header-inner">
+          <Link className="login-brand" to="/" aria-label="Altura Gráfica IA">
+            <span className="reference-brand-mark">A</span>
+            <span>Altura Gráfica IA</span>
+          </Link>
+          <Link className="login-back" to="/">
+            <ArrowLeft aria-hidden="true" /> Volver al inicio
+          </Link>
         </Box>
       </Box>
 
-      <Box className="login-form-side">
+      <Box component="main" className="login-main">
         <Paper className="login-card" elevation={0}>
           <Box className="login-card-heading">
-            <Typography variant="overline">Acceso al estudio</Typography>
             <Typography variant="h2">
-              {mode === "login" ? "Qué bueno tenerte de vuelta" : "Crea tu cuenta"}
+              {mode === "login" ? "Accede a tu estudio" : "Crea tu cuenta"}
             </Typography>
             <Typography color="text.secondary">
-              {mode === "login" ? "Continúa donde dejaste tu último trabajo." : "Empieza a procesar imágenes en minutos."}
+              {mode === "login"
+                ? "Continúa con tus proyectos y resultados."
+                : "Configura tu acceso en menos de un minuto."}
             </Typography>
           </Box>
           {localMode ? (
@@ -152,9 +144,9 @@ export function LoginPage() {
                   {busy ? "Conectando…" : mode === "login" ? "Ingresar" : "Crear cuenta"}
                 </Button>
               </Stack>
-              {mode === "login" && <Button size="small" disabled={busy} onClick={resetPassword}>Olvidé mi contraseña</Button>}
+              {mode === "login" && <Button className="login-reset" size="small" disabled={busy} onClick={resetPassword}>Olvidé mi contraseña</Button>}
               <Divider>o continúa con</Divider>
-              <Button variant="outlined" startIcon={<Google />} disabled={busy} onClick={googleLogin}>Google</Button>
+              <Button variant="outlined" startIcon={<Google />} disabled={busy} onClick={googleLogin}>Continuar con Google</Button>
             </>
           )}
           <Box className="login-security">
@@ -163,7 +155,6 @@ export function LoginPage() {
               {localMode ? "Acceso aislado para desarrollo en esta computadora." : "Autenticación protegida por Firebase. Nunca guardamos tu contraseña."}
             </Typography>
           </Box>
-          <Typography variant="caption" className="login-home-link">¿Aún explorando? <Link to="/">Conoce todas las herramientas</Link></Typography>
         </Paper>
       </Box>
     </Box>

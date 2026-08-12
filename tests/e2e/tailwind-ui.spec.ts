@@ -120,8 +120,9 @@ test("keeps the public landing separate from authentication and responsive", asy
   await page.getByRole("link", { name: "Probar ahora" }).first().click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(
-    page.getByRole("heading", { name: "Qué bueno tenerte de vuelta" }),
+    page.getByRole("heading", { name: "Accede a tu estudio" }),
   ).toBeVisible();
+  await expect(page.locator(".login-preview, .login-story")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Volver al inicio" })).toHaveAttribute(
     "href",
     "/",
@@ -190,7 +191,7 @@ test("keeps Clean Flow responsive without horizontal overflow or small targets",
     await page.setViewportSize(viewport);
     await page.goto("/login");
     await expect(
-      page.getByRole("heading", { name: "Qué bueno tenerte de vuelta" }),
+      page.getByRole("heading", { name: "Accede a tu estudio" }),
     ).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath(`login-${viewport.suffix}.png`),
