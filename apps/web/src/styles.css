@@ -1,11 +1,12 @@
-@import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource-variable/ibm-plex-sans/wght-italic.css";
+@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/space-grotesk";
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
-  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif,
+  --font-sans: "Manrope Variable", Manrope, ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk Variable", "Space Grotesk", ui-sans-serif,
     system-ui, sans-serif;
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
@@ -126,6 +127,12 @@
     font: inherit;
   }
 
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
+
   button,
   a,
   input,
@@ -182,15 +189,17 @@
   }
 
   .ui-typography-h1 {
+    font-family: var(--font-display);
     font-size: clamp(2rem, 4vw, 3.5rem);
-    font-weight: 770;
+    font-weight: 700;
     line-height: 1.03;
     letter-spacing: -0.045em;
   }
 
   .ui-typography-h2 {
+    font-family: var(--font-display);
     font-size: 1.13rem;
-    font-weight: 760;
+    font-weight: 700;
     line-height: 1.3;
     letter-spacing: -0.025em;
   }
@@ -198,8 +207,12 @@
   .ui-typography-h3,
   .ui-typography-subtitle1,
   .ui-typography-subtitle2 {
-    font-weight: 730;
+    font-weight: 700;
     line-height: 1.35;
+  }
+
+  .ui-typography-h3 {
+    font-family: var(--font-display);
   }
 
   .ui-typography-body1 {
@@ -219,7 +232,7 @@
   .ui-typography-overline {
     color: var(--accent);
     font-size: 0.67rem;
-    font-weight: 820;
+    font-weight: 800;
     line-height: 1.4;
     letter-spacing: 0.13em;
     text-transform: uppercase;
@@ -798,6 +811,7 @@
   }
 
   .brand-copy strong {
+    font-family: var(--font-display);
     font-size: 0.91rem;
     letter-spacing: -0.02em;
   }
@@ -3235,6 +3249,7 @@
 }
 
 .reference-brand {
+  font-family: var(--font-display);
   color: white;
   font-size: 1rem;
   font-weight: 600;
@@ -3822,6 +3837,7 @@
 }
 
 .reference-footer-brand strong {
+  font-family: var(--font-display);
   color: white;
   font-size: 0.875rem;
   letter-spacing: -0.02em;
@@ -4061,6 +4077,7 @@
   gap: 0.75rem;
   margin: 0;
   color: white;
+  font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.025em;
