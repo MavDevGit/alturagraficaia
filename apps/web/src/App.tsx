@@ -8,6 +8,11 @@ import { api, type CurrentUser } from "./api/client";
 const LoginPage = lazy(() =>
   import("./pages/LoginPage").then((module) => ({ default: module.LoginPage })),
 );
+const LandingPage = lazy(() =>
+  import("./pages/LandingPage").then((module) => ({
+    default: module.LandingPage,
+  })),
+);
 const StudioPage = lazy(() =>
   import("./pages/StudioPage").then((module) => ({
     default: module.StudioPage,
@@ -76,8 +81,8 @@ export function App() {
       }
     >
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<Navigate to="/studio/upscaler" replace />} />
         <Route
           path="/studio/:tool"
           element={

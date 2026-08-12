@@ -95,6 +95,39 @@ async function loginLocally(page: Page) {
   await expect(page).toHaveURL(/\/studio\/upscaler$/);
 }
 
+test("keeps the public landing separate from authentication and responsive", async ({
+  page,
+}) => {
+  await mockApplication(page);
+
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: /Más detalle.*Más lienzo.*Menos límites/ }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Iniciar sesión" }),
+    ).toHaveAttribute("href", "/login");
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(viewport.width);
+  }
+
+  await page.getByRole("link", { name: "Iniciar sesión" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.getByRole("heading", { name: "Qué bueno tenerte de vuelta" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Volver al inicio" })).toHaveAttribute(
+    "href",
+    "/",
+  );
+});
+
 test("preserves theme, keyboard focus and accessible Radix states", async ({
   page,
 }) => {
