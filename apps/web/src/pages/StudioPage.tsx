@@ -17,21 +17,17 @@ import {
   Paper,
   Slider,
   Stack,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import AddPhotoAlternateOutlined from "@mui/icons-material/AddPhotoAlternateOutlined";
 import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
-import AutoAwesomeRounded from "@mui/icons-material/AutoAwesomeRounded";
 import AutoFixHighRounded from "@mui/icons-material/AutoFixHighRounded";
-import BoltRounded from "@mui/icons-material/BoltRounded";
 import CheckRounded from "@mui/icons-material/CheckRounded";
-import CloudUploadRounded from "@mui/icons-material/CloudUploadRounded";
 import CropFreeRounded from "@mui/icons-material/CropFreeRounded";
-import DownloadRounded from "@mui/icons-material/DownloadRounded";
 import SettingsSuggestRounded from "@mui/icons-material/SettingsSuggestRounded";
-import TuneRounded from "@mui/icons-material/TuneRounded";
 import { useParams, useSearchParams } from "react-router";
 import {
   api,
@@ -87,7 +83,7 @@ const toolMeta: Record<
     title: "Escalador IA",
     model: "SeedVR2 Upscaler",
     emptyTitle: "Sube una imagen para ampliarla",
-    emptyDescription: "El lienzo mantendrá visible el original y el resultado.",
+    emptyDescription: "Verás el original y el resultado en el mismo lienzo.",
     action: "Procesar imagen",
   },
   "background-remover": {
@@ -251,9 +247,12 @@ export function StudioPage() {
             }),
           });
           await uploadDirect(ticket.upload_url, stagedFile, ticket.headers);
-          sourceAsset = await api<Asset>(`/uploads/${ticket.asset.id}/complete`, {
-            method: "POST",
-          });
+          sourceAsset = await api<Asset>(
+            `/uploads/${ticket.asset.id}/complete`,
+            {
+              method: "POST",
+            },
+          );
         }
         const expansion = tool === "outpainting" ? expansionFor(asset) : {};
         const assetUpscale = upscaleConfigs[asset.id] ?? sharedUpscaleConfig;
@@ -299,11 +298,13 @@ export function StudioPage() {
           return previewUrl ? [[sourceAsset.id, previewUrl]] : [];
         }),
       );
-      Object.entries(previewUrlsRef.current).forEach(([localId, previewUrl]) => {
-        if (!items.some((item) => item.localId === localId)) {
-          URL.revokeObjectURL(previewUrl);
-        }
-      });
+      Object.entries(previewUrlsRef.current).forEach(
+        ([localId, previewUrl]) => {
+          if (!items.some((item) => item.localId === localId)) {
+            URL.revokeObjectURL(previewUrl);
+          }
+        },
+      );
       previewUrlsRef.current = nextPreviews;
       setPreviewUrls(nextPreviews);
       stagedFilesRef.current = {};
@@ -541,7 +542,6 @@ export function StudioPage() {
   const primaryAction = completed ? (
     <Button
       variant="contained"
-      startIcon={<DownloadRounded />}
       disabled={downloadResult.isPending}
       onClick={() => downloadResult.mutate()}
     >
@@ -555,9 +555,7 @@ export function StudioPage() {
       startIcon={
         process.isPending ? (
           <CircularProgress size={18} color="inherit" />
-        ) : (
-          toolIcon(tool)
-        )
+        ) : undefined
       }
       disabled={!canProcess}
       onClick={() => process.mutate()}
@@ -645,9 +643,9 @@ export function StudioPage() {
                         ? "Preparando previsualización…"
                         : process.isPending
                           ? "Subiendo originales y creando el trabajo…"
-                        : currentJob.data?.status === "processing"
-                          ? "Procesando con IA…"
-                          : "Preparando el resultado completo…"}
+                          : currentJob.data?.status === "processing"
+                            ? "Procesando con IA…"
+                            : "Preparando el resultado completo…"}
                     </Typography>
                   </Box>
                 )}
@@ -676,18 +674,16 @@ export function StudioPage() {
               >
                 <input {...getInputProps()} />
                 <Box className="drop-content">
-                  <Box className="upload-icon">{toolIcon(tool)}</Box>
+                  <Box className="upload-icon">
+                    <AddPhotoAlternateOutlined />
+                  </Box>
                   <Typography variant="h2">
                     {toolMeta[tool].emptyTitle}
                   </Typography>
                   <Typography color="text.secondary">
                     {toolMeta[tool].emptyDescription}
                   </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<CloudUploadRounded />}
-                    onClick={open}
-                  >
+                  <Button variant="contained" onClick={open}>
                     Seleccionar imagen
                   </Button>
                   <Typography variant="caption" color="text.secondary">
@@ -701,38 +697,11 @@ export function StudioPage() {
             )}
           </Box>
 
-          {tool === "upscaler" ? (
-            <UpscalerStatusBar
-              assets={assets}
-              completed={Boolean(completed)}
-              busy={fullyBusy}
-              dimensions={dimensions}
-              format={format}
-              batchEstimatedCost={batchEstimatedCost}
-            />
-          ) : (
-            <WorkflowStrip
-              tool={tool}
-              assets={assets}
-              completed={Boolean(completed)}
-              busy={fullyBusy}
-              dimensions={dimensions}
-              scale={effectiveScale}
-              scaleMode={scaleMode}
-              targetResolution={targetResolution}
-              format={format}
-              quality={quality}
-              canvasMode={canvasMode}
-              margins={effectiveOutpaintingMargins}
-              batchSize={assets.length}
-              batchEstimatedCost={batchEstimatedCost}
-              onOpen={open}
-              onProcess={() => process.mutate()}
-              onDownload={() => downloadResult.mutate()}
-              canProcess={canProcess}
-              downloading={downloadResult.isPending}
-            />
-          )}
+          <UpscalerStatusBar
+            assets={assets}
+            completed={Boolean(completed)}
+            busy={fullyBusy}
+          />
         </Box>
 
         <Paper
@@ -749,7 +718,6 @@ export function StudioPage() {
                   {toolMeta[tool].model}
                 </Typography>
               </Box>
-              <TuneRounded />
             </Box>
 
             <Box className="inspector-scroll">
@@ -802,7 +770,9 @@ export function StudioPage() {
                 />
               )}
 
-              {tool === "background-remover" && <BackgroundSettings />}
+              {tool === "background-remover" && (
+                <BackgroundSettings format={format} setFormat={setFormat} />
+              )}
 
               {tool === "outpainting" && (
                 <OutpaintingSettings
@@ -814,8 +784,6 @@ export function StudioPage() {
                   effectiveMargins={effectiveOutpaintingMargins}
                   setMargins={setMargins}
                   needsMargin={needsMargin}
-                  format={format}
-                  setFormat={setFormat}
                   dimensions={dimensions}
                 />
               )}
@@ -828,25 +796,33 @@ export function StudioPage() {
                   : `${estimatedCost} crédito${estimatedCost === 1 ? "" : "s"} por imagen`}
               </Typography>
               {primaryAction}
+              <Typography variant="caption" color="text.secondary">
+                Cola ({assets.length}) ·{" "}
+                {assets.length
+                  ? "revisa el progreso de cada imagen abajo."
+                  : "la cola aparecerá aquí."}
+              </Typography>
             </Box>
           </Box>
 
-          <QueuePanel
-            tool={tool}
-            assets={assets}
-            previewUrls={previewUrls}
-            jobs={batchJobs}
-            completedCount={completedJobs}
-            upscaleConfigs={upscaleConfigs}
-            sharedUpscaleConfig={sharedUpscaleConfig}
-            onUpscaleConfigChange={(assetId, config) =>
-              setUpscaleConfigs((current) => ({
-                ...current,
-                [assetId]: config,
-              }))
-            }
-            onClear={reset}
-          />
+          {assets.length > 0 && (
+            <QueuePanel
+              tool={tool}
+              assets={assets}
+              previewUrls={previewUrls}
+              jobs={batchJobs}
+              completedCount={completedJobs}
+              upscaleConfigs={upscaleConfigs}
+              sharedUpscaleConfig={sharedUpscaleConfig}
+              onUpscaleConfigChange={(assetId, config) =>
+                setUpscaleConfigs((current) => ({
+                  ...current,
+                  [assetId]: config,
+                }))
+              }
+              onClear={reset}
+            />
+          )}
         </Paper>
 
         <Box className="mobile-studio-action">{primaryAction}</Box>
@@ -905,12 +881,8 @@ function UpscalerSettings({
               value={scaleMode}
               onChange={(_, value) => value && setScaleMode(value)}
             >
-              <ToggleButton value="factor">
-                <ArrowForwardRounded /> Por factor
-              </ToggleButton>
-              <ToggleButton value="resolution">
-                <SettingsSuggestRounded /> Resolución
-              </ToggleButton>
+              <ToggleButton value="factor">Por factor</ToggleButton>
+              <ToggleButton value="resolution">Resolución</ToggleButton>
             </ToggleButtonGroup>
           </FormControl>
           {scaleMode === "factor" ? (
@@ -921,13 +893,11 @@ function UpscalerSettings({
               value={scale}
               onChange={(_, value) => value && setScale(value)}
             >
-              {Array.from({ length: 10 }, (_, index) => index + 1).map(
-                (value) => (
-                  <ToggleButton key={value} value={value}>
-                    {value}×
-                  </ToggleButton>
-                ),
-              )}
+              {[1, 2, 3, 4, 5, 6, 8, 10].map((value) => (
+                <ToggleButton key={value} value={value}>
+                  {value}×
+                </ToggleButton>
+              ))}
             </ToggleButtonGroup>
           ) : (
             <ToggleButtonGroup
@@ -970,7 +940,13 @@ function UpscalerSettings({
   );
 }
 
-function BackgroundSettings() {
+function BackgroundSettings({
+  format,
+  setFormat,
+}: {
+  format: string;
+  setFormat: (value: string) => void;
+}) {
   return (
     <>
       <Box className="feature-intro">
@@ -978,21 +954,30 @@ function BackgroundSettings() {
           <AutoFixHighRounded />
         </Box>
         <Box>
-          <Typography variant="h2">Recorte automático</Typography>
+          <Typography component="h3" variant="h2">
+            Recorte automático
+          </Typography>
           <Typography variant="caption" color="text.secondary">
             Conserva cabello, bordes suaves y detalles transparentes.
           </Typography>
         </Box>
       </Box>
-      <Box className="output-card">
-        <Typography variant="subtitle2">Salida</Typography>
-        <Box>
-          <AddPhotoAlternateOutlined />
-          <Typography>PNG transparente</Typography>
-        </Box>
-      </Box>
+      <FormControl>
+        <FormLabel>Salida</FormLabel>
+        <ToggleButtonGroup
+          className="background-output-selector"
+          exclusive
+          fullWidth
+          value={format}
+          onChange={(_, next) => next && setFormat(next)}
+        >
+          <ToggleButton value="png">PNG transparente</ToggleButton>
+          <ToggleButton value="jpeg">PNG con fondo</ToggleButton>
+          <ToggleButton value="webp">WEBP</ToggleButton>
+        </ToggleButtonGroup>
+      </FormControl>
       <Typography variant="caption" color="text.secondary">
-        Cada imagen consume créditos cuando el resultado se genera
+        Cada imagen consume créditos solo cuando el resultado se genera
         correctamente.
       </Typography>
     </>
@@ -1008,8 +993,6 @@ function OutpaintingSettings({
   effectiveMargins,
   setMargins,
   needsMargin,
-  format,
-  setFormat,
   dimensions,
 }: {
   quality: "maximum" | "fast";
@@ -1020,8 +1003,6 @@ function OutpaintingSettings({
   effectiveMargins: Margins;
   setMargins: (value: Margins) => void;
   needsMargin: boolean;
-  format: string;
-  setFormat: (value: string) => void;
   dimensions: { before: string; after: string } | null;
 }) {
   return (
@@ -1035,12 +1016,8 @@ function OutpaintingSettings({
           value={quality}
           onChange={(_, value) => value && setQuality(value)}
         >
-          <ToggleButton value="maximum">
-            <AutoAwesomeRounded /> Máxima
-          </ToggleButton>
-          <ToggleButton value="fast">
-            <BoltRounded /> Rápida
-          </ToggleButton>
+          <ToggleButton value="maximum">Máxima</ToggleButton>
+          <ToggleButton value="fast">Rápida</ToggleButton>
         </ToggleButtonGroup>
       </FormControl>
       <FormControl>
@@ -1065,12 +1042,6 @@ function OutpaintingSettings({
         </ToggleButtonGroup>
       </FormControl>
       {dimensions && <DimensionCard dimensions={dimensions} />}
-      <Box className="outpaint-margin-summary" aria-label="Márgenes del lienzo">
-        <Chip label={`Izq. +${effectiveMargins.left} px`} size="small" />
-        <Chip label={`Der. +${effectiveMargins.right} px`} size="small" />
-        <Chip label={`Sup. +${effectiveMargins.top} px`} size="small" />
-        <Chip label={`Inf. +${effectiveMargins.bottom} px`} size="small" />
-      </Box>
       {needsMargin && (
         <Alert severity="info">
           {canvasMode === "manual"
@@ -1078,41 +1049,40 @@ function OutpaintingSettings({
             : `La imagen ya coincide con ${canvasModeLabels[canvasMode]}. Elige otra relación o ajusta los bordes manualmente.`}
         </Alert>
       )}
-      {canvasMode === "manual" &&
-        (
-          [
-            ["left", "Izquierda", "Extensión horizontal."],
-            ["right", "Derecha", "Extensión horizontal."],
-            ["top", "Superior", "Extensión vertical."],
-            ["bottom", "Inferior", "Extensión vertical."],
-          ] as const
-        ).map(([key, label, help]) => (
-          <FormControl key={key} className="margin-control">
-            <FormLabel>
-              <span>
-                {label}
-                <Typography variant="caption" color="text.secondary">
-                  {help}
-                </Typography>
-              </span>
-              <Chip label={`${margins[key]} px`} size="small" />
-            </FormLabel>
-            <Slider
-              min={0}
-              max={maximumMargin}
-              step={1}
-              value={margins[key]}
-              onChange={(_, value) =>
-                setMargins({ ...margins, [key]: value as number })
-              }
-            />
-          </FormControl>
-        ))}
-      <OutputFormat
-        value={format}
-        onChange={setFormat}
-        formats={["png", "jpeg"]}
-      />
+      {canvasMode === "manual" && (
+        <Box className="margin-grid">
+          {(
+            [
+              ["left", "Izquierda (px)"],
+              ["right", "Derecha (px)"],
+              ["top", "Superior (px)"],
+              ["bottom", "Inferior (px)"],
+            ] as const
+          ).map(([key, label]) => (
+            <FormControl key={key} className="margin-control">
+              <FormLabel htmlFor={`margin-${key}`}>{label}</FormLabel>
+              <TextField
+                id={`margin-${key}`}
+                type="number"
+                size="small"
+                value={margins[key]}
+                slotProps={{
+                  htmlInput: { min: 0, max: maximumMargin, step: 16 },
+                }}
+                onChange={(event) =>
+                  setMargins({
+                    ...margins,
+                    [key]: Math.min(
+                      maximumMargin,
+                      Math.max(0, Number(event.target.value) || 0),
+                    ),
+                  })
+                }
+              />
+            </FormControl>
+          ))}
+        </Box>
+      )}
     </>
   );
 }
@@ -1170,37 +1140,23 @@ function UpscalerStatusBar({
   assets,
   completed,
   busy,
-  dimensions,
-  format,
-  batchEstimatedCost,
 }: {
   assets: Asset[];
   completed: boolean;
   busy: boolean;
-  dimensions: { before: string; after: string } | null;
-  format: string;
-  batchEstimatedCost: number;
 }) {
   const currentStep = completed ? 3 : busy ? 2 : assets.length ? 1 : 0;
-  const steps = ["Cargar", "Configurar", "Procesar", "Resultado"];
-  const summary = completed
-    ? "Resultado listo para descargar"
-    : busy
-      ? "Procesando con SeedVR2…"
-      : assets.length > 1
-        ? `${assets.length} imágenes · ${batchEstimatedCost} créditos estimados · ${format.toUpperCase()}`
-        : dimensions
-          ? `${dimensions.before} → ${dimensions.after} · ${format.toUpperCase()}`
-          : "Sube una imagen para comenzar";
+  const steps = ["Cargar", "Configurar", "Procesar", "Descargar"];
 
   return (
-    <Box className="upscaler-status-bar" aria-label="Progreso del escalado">
-      <Box className="upscaler-progress">
+    <Box className="upscaler-status-bar" aria-label="Progreso del trabajo">
+      <Box component="ol" className="upscaler-progress">
         {steps.map((step, index) => {
           const done = index < currentStep || completed;
           const current = index === currentStep && !completed;
           return (
             <Box
+              component="li"
               key={step}
               className={`upscaler-progress-step ${done ? "done" : ""} ${current ? "current" : ""}`}
             >
@@ -1210,208 +1166,6 @@ function UpscalerStatusBar({
           );
         })}
       </Box>
-      <Typography className="upscaler-status-summary" variant="caption">
-        {summary}
-      </Typography>
-    </Box>
-  );
-}
-
-function WorkflowStrip({
-  tool,
-  assets,
-  completed,
-  busy,
-  dimensions,
-  scale,
-  scaleMode,
-  targetResolution,
-  format,
-  quality,
-  canvasMode,
-  margins,
-  batchSize,
-  batchEstimatedCost,
-  onOpen,
-  onProcess,
-  onDownload,
-  canProcess,
-  downloading,
-}: {
-  tool: Tool;
-  assets: Asset[];
-  completed: boolean;
-  busy: boolean;
-  dimensions: { before: string; after: string } | null;
-  scale: number;
-  scaleMode: "factor" | "resolution";
-  targetResolution: TargetResolution;
-  format: string;
-  quality: "maximum" | "fast";
-  canvasMode: CanvasMode;
-  margins: Margins;
-  batchSize: number;
-  batchEstimatedCost: number;
-  onOpen: () => void;
-  onProcess: () => void;
-  onDownload: () => void;
-  canProcess: boolean;
-  downloading: boolean;
-}) {
-  const steps = ["Cargar", "Configurar", "Procesar", "Descargar"];
-  return (
-    <Box className="workflow-strip detailed-workflow">
-      {steps.map((step, index) => {
-        const done = completed || (assets.length > 0 && index < 2);
-        return (
-          <Box key={step} className={`workflow-step ${done ? "done" : ""}`}>
-            <Box className="workflow-step-heading">
-              <span>{done ? <CheckRounded /> : index + 1}</span>
-              <Typography>{step}</Typography>
-            </Box>
-            <Box className="workflow-step-content">
-              {index === 0 && (
-                <>
-                  <Typography variant="caption" color="text.secondary">
-                    {dimensions?.before ?? "Carga una imagen para comenzar."}
-                  </Typography>
-                  <Button
-                    className="workflow-step-action"
-                    startIcon={<AddPhotoAlternateOutlined />}
-                    onClick={onOpen}
-                  >
-                    {assets.length ? "Cambiar imagen" : "Elegir imagen"}
-                  </Button>
-                </>
-              )}
-              {index === 1 && (
-                <SettingsSummary
-                  tool={tool}
-                  scale={scale}
-                  scaleMode={scaleMode}
-                  targetResolution={targetResolution}
-                  format={format}
-                  quality={quality}
-                  canvasMode={canvasMode}
-                  margins={margins}
-                  batchSize={batchSize}
-                  batchEstimatedCost={batchEstimatedCost}
-                />
-              )}
-              {index === 2 && (
-                <>
-                  <Typography variant="caption" color="text.secondary">
-                    {busy
-                      ? "El motor IA está trabajando."
-                      : completed
-                        ? "Procesamiento completado."
-                        : "Configura y carga una imagen para procesar."}
-                  </Typography>
-                  <Button
-                    className="workflow-step-action"
-                    variant="contained"
-                    startIcon={<AutoAwesomeRounded />}
-                    disabled={!canProcess}
-                    onClick={onProcess}
-                  >
-                    Iniciar proceso
-                  </Button>
-                </>
-              )}
-              {index === 3 && (
-                <>
-                  <Typography variant="caption" color="text.secondary">
-                    {completed
-                      ? "El resultado está listo."
-                      : "Estará disponible al completar el proceso."}
-                  </Typography>
-                  <Button
-                    className="workflow-step-action"
-                    variant="outlined"
-                    startIcon={<DownloadRounded />}
-                    disabled={!completed || downloading}
-                    onClick={onDownload}
-                  >
-                    {downloading ? "Preparando…" : "Descargar"}
-                  </Button>
-                </>
-              )}
-            </Box>
-          </Box>
-        );
-      })}
-    </Box>
-  );
-}
-
-function SettingsSummary({
-  tool,
-  scale,
-  scaleMode,
-  targetResolution,
-  format,
-  quality,
-  canvasMode,
-  margins,
-  batchSize,
-  batchEstimatedCost,
-}: {
-  tool: Tool;
-  scale: number;
-  scaleMode: "factor" | "resolution";
-  targetResolution: TargetResolution;
-  format: string;
-  quality: "maximum" | "fast";
-  canvasMode: CanvasMode;
-  margins: Margins;
-  batchSize: number;
-  batchEstimatedCost: number;
-}) {
-  const rows =
-    tool === "upscaler"
-      ? batchSize > 1
-        ? [
-            ["Escala", "Individual por imagen"],
-            ["Lote", `${batchSize} imágenes · ${batchEstimatedCost} créditos`],
-            ["Formato", format.toUpperCase()],
-          ]
-        : [
-            [
-              scaleMode === "resolution" ? "Objetivo" : "Escala",
-              scaleMode === "resolution" ? targetResolution : `${scale}×`,
-            ],
-            ["Formato", format.toUpperCase()],
-          ]
-      : tool === "background-remover"
-        ? [
-            ["Modelo", "RMBG 2.0"],
-            ["Salida", "PNG"],
-            ["Fondo", "Transparente"],
-          ]
-        : [
-            [
-              "Modelo",
-              `FLUX.2 Pro · ${quality === "fast" ? "Rápida" : "Alta"}`,
-            ],
-            ["Relación", canvasModeLabels[canvasMode]],
-            [
-              "Márgenes",
-              `H ${margins.left + margins.right} · V ${margins.top + margins.bottom} px`,
-            ],
-            ["Formato", format.toUpperCase()],
-          ];
-  return (
-    <Box component="dl" className="workflow-summary">
-      {rows.map(([label, value]) => (
-        <Box key={label}>
-          <Typography component="dt" variant="caption" color="text.secondary">
-            {label}
-          </Typography>
-          <Typography component="dd" variant="caption">
-            {value}
-          </Typography>
-        </Box>
-      ))}
     </Box>
   );
 }

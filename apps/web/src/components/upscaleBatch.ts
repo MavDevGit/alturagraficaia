@@ -11,7 +11,7 @@ export type UpscaleConfig = {
 
 export const defaultUpscaleConfig: UpscaleConfig = {
   mode: "factor",
-  scale: 2,
+  scale: 3,
   targetResolution: "1080p",
 };
 

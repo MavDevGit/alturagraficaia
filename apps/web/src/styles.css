@@ -2873,3 +2873,796 @@ select {
     max-width: 34ch;
   }
 }
+
+/* Final cascade: keep the reference layout authoritative over legacy rules. */
+:root {
+  --altura-header: 65px;
+  --altura-rail: 176px;
+}
+
+.topbar .MuiToolbar-root {
+  min-height: 64px !important;
+  padding-inline: 24px;
+  gap: 8px;
+}
+
+.brand-mark.compact {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border-radius: 6px;
+  color: var(--mui-palette-primary-contrastText);
+  background: var(--mui-palette-primary-main);
+  box-shadow: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.shell-main {
+  min-height: 0;
+  padding: 0;
+}
+
+.reference-studio {
+  height: auto;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 24px;
+  overflow: visible;
+  background: transparent;
+}
+
+.studio-workspace {
+  display: block;
+  overflow: visible;
+}
+
+.reference-studio .canvas-column,
+.reference-studio.upscaler-studio .canvas-column {
+  min-height: 0;
+  display: block;
+  background: transparent;
+}
+
+.reference-studio .drop-canvas,
+.reference-studio .processing-canvas,
+.upscaler-studio .drop-canvas,
+.upscaler-studio .processing-canvas {
+  width: 100%;
+  height: auto;
+  min-height: 520px;
+  margin: 0;
+  border: 1px dashed var(--mui-palette-divider);
+  border-radius: 8px !important;
+  background: var(--mui-palette-background-paper) !important;
+  box-shadow: none;
+}
+
+.reference-studio .processing-canvas {
+  border-style: solid;
+}
+
+.reference-studio .drop-content {
+  width: min(100%, 448px);
+  padding: 32px;
+  gap: 0;
+}
+
+.reference-studio .upload-icon {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--mui-palette-primary-main);
+  background: transparent;
+  box-shadow: none;
+}
+
+.reference-studio .upload-icon svg {
+  font-size: 32px;
+}
+
+.reference-studio .drop-content h2 {
+  margin: 16px 0 0;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 500;
+}
+
+.reference-studio .drop-content .MuiTypography-body1 {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.reference-studio .drop-content .MuiButton-root {
+  min-width: 0;
+  margin-top: 20px;
+}
+
+.reference-studio .drop-content .MuiTypography-caption {
+  margin-top: 12px;
+}
+
+.reference-studio .compare-viewer {
+  height: 560px;
+  margin: 0;
+}
+
+.upscaler-status-bar {
+  min-height: 0;
+  margin-top: 16px;
+  padding: 0;
+  display: block;
+  border: 0;
+  background: transparent;
+}
+
+.upscaler-progress {
+  display: flex;
+  grid-template-columns: none;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.upscaler-progress-step {
+  width: auto;
+  gap: 8px;
+}
+
+.upscaler-progress-step > span {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--mui-palette-divider);
+  color: var(--mui-palette-text-secondary);
+  background: transparent;
+  font-size: 10px;
+}
+
+.upscaler-progress-step.current > span,
+.upscaler-progress-step.done > span {
+  border-color: var(--mui-palette-primary-main);
+  color: var(--mui-palette-primary-main);
+  background: var(--mui-palette-action-selected);
+  box-shadow: none;
+}
+
+.studio-sidebar,
+.empty-upscaler .studio-sidebar,
+.single-upscaler .studio-sidebar,
+.batch-upscaler .studio-sidebar {
+  display: block;
+  border: 0;
+  background: transparent !important;
+}
+
+.reference-studio .inspector {
+  padding: 0;
+  display: block;
+  overflow: visible;
+}
+
+.reference-studio .inspector-heading {
+  min-height: 0;
+  padding: 0;
+  display: block;
+  border: 0;
+}
+
+.reference-studio .inspector-heading h2 {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.reference-studio .inspector-heading .MuiTypography-caption {
+  font-size: 0.75rem;
+}
+
+.inspector-scroll,
+.upscaler-studio .inspector-scroll {
+  margin-top: 24px;
+  padding: 0;
+  gap: 20px;
+  overflow: visible;
+}
+
+.reference-studio .MuiFormLabel-root {
+  margin-bottom: 8px;
+  color: var(--mui-palette-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.reference-studio .MuiFormLabel-root .MuiTypography-caption {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.segmented-control,
+.scale-selector,
+.aspect-selector,
+.format-selector,
+.background-output-selector {
+  padding: 0;
+  display: grid !important;
+  gap: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.inspector .factor-scale-selector.MuiToggleButtonGroup-root {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.segmented-control .MuiToggleButton-root,
+.scale-selector .MuiToggleButton-root,
+.aspect-selector .MuiToggleButton-root,
+.format-selector .MuiToggleButton-root,
+.background-output-selector .MuiToggleButton-root {
+  min-height: 44px;
+  border: 1px solid var(--mui-palette-divider) !important;
+  border-radius: 6px !important;
+  color: var(--mui-palette-text-secondary);
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.segmented-control .MuiToggleButton-root.Mui-selected,
+.scale-selector .MuiToggleButton-root.Mui-selected,
+.aspect-selector .MuiToggleButton-root.Mui-selected,
+.format-selector .MuiToggleButton-root.Mui-selected,
+.background-output-selector .MuiToggleButton-root.Mui-selected {
+  border-color: var(--mui-palette-primary-main) !important;
+  color: var(--mui-palette-primary-main);
+  background: var(--mui-palette-action-selected) !important;
+  box-shadow: none;
+  font-weight: 500;
+}
+
+.feature-intro {
+  display: block;
+}
+
+.feature-intro-icon {
+  display: none;
+}
+
+.feature-intro h2 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.inspector-primary-action {
+  margin-top: 24px;
+  padding: 16px 0 0;
+  gap: 12px;
+  background: transparent;
+}
+
+.queue-panel {
+  min-height: 0;
+  margin: 20px 0 0;
+  padding: 16px 0 0;
+  overflow: visible;
+}
+
+.mobile-studio-action {
+  display: none !important;
+}
+
+.content-page {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.page-heading {
+  align-items: flex-end;
+  padding: 0;
+  border: 0;
+}
+
+.page-heading h1 {
+  margin: 4px 0 0;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+}
+
+.history-grid {
+  margin-top: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.history-card,
+.history-card:hover {
+  min-height: 0;
+  padding: 16px;
+  display: block;
+  justify-content: initial;
+  gap: 0;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+.history-card-visual {
+  height: auto;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--mui-palette-text-secondary);
+  background: var(--mui-palette-action-hover);
+}
+
+.history-card-visual::after {
+  display: none;
+}
+
+.history-card-visual svg {
+  position: static;
+  font-size: 20px;
+}
+
+.history-card > .MuiStack-root {
+  margin-top: 12px;
+}
+
+.history-card h2 {
+  margin-top: 8px;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 500;
+}
+
+.history-card-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  display: block;
+}
+
+.history-card-actions {
+  width: 100%;
+}
+
+.history-card-actions .MuiButton-root {
+  min-width: 0;
+  min-height: 44px;
+  flex: 1;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 1279px) {
+  .history-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --altura-rail: 0px;
+  }
+
+  .reference-studio {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .studio-workspace {
+    display: block;
+  }
+
+  .reference-studio .canvas-column,
+  .reference-studio.upscaler-studio .canvas-column {
+    min-height: 0;
+  }
+
+  .reference-studio .drop-canvas,
+  .reference-studio .processing-canvas,
+  .upscaler-studio .drop-canvas,
+  .upscaler-studio .processing-canvas {
+    min-height: 420px;
+  }
+
+  .studio-sidebar {
+    width: 100%;
+  }
+
+  .inspector-primary-action {
+    padding-bottom: 0;
+  }
+
+  .inspector-primary-action .MuiButton-root {
+    display: inline-flex;
+  }
+
+  .queue-panel {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .topbar .MuiToolbar-root {
+    padding-inline: 16px;
+  }
+
+  .reference-studio .drop-canvas,
+  .reference-studio .processing-canvas,
+  .upscaler-studio .drop-canvas,
+  .upscaler-studio .processing-canvas {
+    min-height: 420px;
+    margin: 0;
+  }
+
+  .upscaler-progress-step .MuiTypography-root {
+    display: block;
+  }
+
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Structure introduced by the clean-flow shell. */
+.app-shell {
+  min-height: 100dvh;
+  color: var(--mui-palette-text-primary);
+  background: var(--mui-palette-background-default);
+}
+
+.topbar.MuiAppBar-root {
+  position: relative;
+  border-bottom: 1px solid var(--mui-palette-divider);
+  background: var(--mui-palette-background-default) !important;
+  backdrop-filter: none;
+  z-index: 1 !important;
+}
+
+.brand-lockup {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-copy > .MuiTypography-root:first-child {
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.brand-copy .MuiTypography-caption {
+  display: block;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.credit-pill {
+  min-height: 28px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--mui-palette-divider);
+  border-radius: 999px;
+  color: var(--mui-palette-text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.topbar .MuiIconButton-root {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+}
+
+.shell-body {
+  width: 100%;
+  max-width: 1400px;
+  margin-inline: auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: var(--altura-rail) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.tool-navigation {
+  width: var(--altura-rail);
+  flex: 0 0 auto;
+}
+
+.tool-navigation .MuiList-root {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-navigation .MuiListItemButton-root {
+  min-height: 44px;
+  padding: 0 12px;
+  gap: 8px;
+  border-radius: 6px;
+  color: var(--mui-palette-text-secondary);
+  white-space: nowrap;
+}
+
+.tool-navigation .MuiListItemIcon-root {
+  min-width: 20px;
+  color: inherit;
+}
+
+.tool-navigation .MuiListItemIcon-root svg {
+  font-size: 16px;
+}
+
+.tool-navigation .MuiListItemText-root {
+  margin: 0;
+}
+
+.tool-navigation .MuiListItemText-primary {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.tool-navigation .Mui-selected,
+.tool-navigation .Mui-selected:hover {
+  color: var(--mui-palette-primary-main) !important;
+  background: var(--mui-palette-action-selected) !important;
+}
+
+.tool-navigation .Mui-selected .MuiListItemText-primary {
+  font-weight: 500;
+}
+
+.reference-studio .processing-canvas.has-preview {
+  padding: 18px;
+}
+
+.reference-studio .source-preview {
+  max-height: 390px;
+}
+
+.upscaler-progress {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upscaler-progress-step.current,
+.upscaler-progress-step.done {
+  color: var(--mui-palette-text-primary);
+  font-weight: 500;
+}
+
+.reference-studio .MuiFormControl-root {
+  width: 100%;
+}
+
+.reference-studio .MuiFormLabel-root > span {
+  display: block;
+}
+
+.reference-studio .MuiFormLabel-root .MuiTypography-caption {
+  display: block;
+  color: var(--mui-palette-text-secondary);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.reference-studio .MuiFormLabel-root:has(+ .MuiSlider-root) {
+  color: var(--mui-palette-text-primary);
+  font-size: 0.875rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.reference-studio .MuiFormLabel-root > .MuiChip-root {
+  height: auto;
+  padding: 0;
+  color: var(--mui-palette-text-secondary);
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.reference-studio .MuiFormLabel-root > .MuiChip-root .MuiChip-label {
+  padding: 0;
+}
+
+.segmented-control {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scale-selector:not(.factor-scale-selector),
+.aspect-selector {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.format-selector {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.background-output-selector {
+  grid-template-columns: 1fr;
+}
+
+.background-output-selector .MuiToggleButton-root {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.feature-intro .MuiTypography-caption {
+  display: block;
+  margin-top: 4px;
+}
+
+.margin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.margin-grid .MuiFormLabel-root {
+  margin-bottom: 4px;
+  color: var(--mui-palette-text-secondary);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.margin-grid .MuiOutlinedInput-root {
+  min-height: 44px;
+  border-radius: 6px;
+  background: var(--mui-palette-background-paper);
+}
+
+.margin-grid input {
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-heading > div:first-child {
+  max-width: none;
+}
+
+.page-heading .MuiTypography-overline {
+  color: var(--mui-palette-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+.page-heading h1 + .MuiTypography-root {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.history-grid {
+  padding: 0;
+  list-style: none;
+}
+
+.history-card {
+  border: 1px solid var(--mui-palette-divider);
+  background: var(--mui-palette-background-paper) !important;
+}
+
+.history-card .MuiTypography-overline {
+  color: var(--mui-palette-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+.history-card .MuiChip-root {
+  height: 24px;
+  border: 1px solid var(--mui-palette-primary-main);
+  border-radius: 999px;
+  color: var(--mui-palette-primary-main);
+  background: transparent;
+  font-size: 0.6875rem;
+  font-weight: 400;
+}
+
+.history-card h2 + .MuiTypography-body2 {
+  color: var(--mui-palette-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.history-card-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.history-card-actions .MuiButton-endIcon {
+  margin-left: 4px;
+}
+
+.history-card-actions svg {
+  font-size: 16px;
+}
+
+@media (max-width: 1023px) {
+  .shell-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .tool-navigation {
+    width: 100%;
+  }
+
+  .tool-navigation .MuiList-root {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .tool-navigation .MuiListItemButton-root {
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .shell-main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 639px) {
+  .shell-body {
+    padding: 24px 16px;
+  }
+
+  .brand-copy {
+    display: block;
+  }
+
+  .brand-copy > .MuiTypography-root:first-child {
+    max-width: 132px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .brand-copy .MuiTypography-caption {
+    display: none;
+  }
+
+  .credit-pill {
+    padding-inline: 10px;
+  }
+
+  .reference-studio .drop-content {
+    padding: 24px 18px;
+  }
+}

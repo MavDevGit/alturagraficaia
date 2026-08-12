@@ -6,7 +6,6 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ColorModeProvider } from "./theme/ColorModeProvider";
 import { App } from "./App";
 import { AppBoundary, NetworkStatus } from "./components/AppBoundary";
-import "@fontsource-variable/plus-jakarta-sans";
 import "./styles.css";
 
 const queryClient = new QueryClient({

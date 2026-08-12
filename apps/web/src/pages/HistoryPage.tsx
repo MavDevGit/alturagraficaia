@@ -56,9 +56,11 @@ function extensionFor(job: Job): string {
 
 function HistoryThumbnail({ job }: { job: Job }) {
   return (
-    <Box className="history-card-visual">
+    <Box
+      className="history-card-visual"
+      aria-label={`${displayedAsset(job).width} por ${displayedAsset(job).height} píxeles`}
+    >
       <ImageNotSupportedRounded />
-      <span>{displayedAsset(job).width}</span>
     </Box>
   );
 }
@@ -105,8 +107,8 @@ export function HistoryPage() {
             <Typography variant="overline">Biblioteca temporal</Typography>
             <Typography variant="h1">Tus resultados recientes</Typography>
             <Typography color="text.secondary">
-              Los originales y los enlaces temporales de resultados caducan
-              automáticamente a los siete días.
+              Los originales y los enlaces de resultados caducan a los siete
+              días.
             </Typography>
           </Box>
           <Button
@@ -143,9 +145,14 @@ export function HistoryPage() {
             </Typography>
           </Paper>
         )}
-        <Box className="history-grid">
+        <Box component="ul" className="history-grid">
           {items.map((job) => (
-            <Paper key={job.id} className="history-card" elevation={0}>
+            <Paper
+              component="li"
+              key={job.id}
+              className="history-card"
+              elevation={0}
+            >
               <HistoryThumbnail job={job} />
               <Stack
                 direction="row"
@@ -171,14 +178,12 @@ export function HistoryPage() {
                   {displayedAsset(job).width} × {displayedAsset(job).height}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {new Date(job.created_at).toLocaleString("es")}
-                </Typography>
-              </Box>
-              <Box className="history-card-footer">
-                <Typography variant="caption">
+                  {new Date(job.created_at).toLocaleString("es")} ·{" "}
                   {job.credits} crédito{job.credits === 1 ? "" : "s"}
                 </Typography>
-                {job.result_asset && job.status === "completed" && (
+              </Box>
+              {job.result_asset && job.status === "completed" && (
+                <Box className="history-card-footer">
                   <Box className="history-card-actions">
                     <Button
                       component={Link}
@@ -195,8 +200,8 @@ export function HistoryPage() {
                       {downloading === job.id ? "Descargando…" : "Descargar"}
                     </Button>
                   </Box>
-                )}
-              </Box>
+                </Box>
+              )}
             </Paper>
           ))}
         </Box>

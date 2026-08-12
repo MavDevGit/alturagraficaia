@@ -34,11 +34,11 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
   );
   const theme = useMemo(() => {
     const light = mode === "light";
-    const ink = light ? "#13201B" : "#F1F7F4";
+    const ink = light ? "#26322D" : "#F1F7F4";
     const paper = light ? "#FFFFFF" : "#101A17";
-    const canvas = light ? "#F2F5F3" : "#07100D";
-    const divider = light ? "#DCE5E0" : "#24342E";
-    const accent = light ? emerald[600] : emerald[400];
+    const canvas = light ? "#FBFDFC" : "#07100D";
+    const divider = light ? "#E4E9E6" : "#24342E";
+    const accent = light ? "#378267" : emerald[400];
 
     return createTheme({
       colorSchemes: {
@@ -62,7 +62,7 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
             background: { default: canvas, paper },
             text: {
               primary: ink,
-              secondary: light ? "#5D6D66" : "#A7B8B0",
+              secondary: light ? "#66736D" : "#A7B8B0",
             },
             divider,
             action: {
@@ -75,9 +75,10 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
         },
       },
       cssVariables: { colorSchemeSelector: "class" },
-      shape: { borderRadius: 14 },
+      shape: { borderRadius: 8 },
       typography: {
-        fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         h1: {
           fontSize: "clamp(2rem, 4vw, 3.5rem)",
           lineHeight: 1.02,
@@ -133,22 +134,18 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
           defaultProps: { disableElevation: true },
           styleOverrides: {
             root: {
-              minHeight: 46,
-              borderRadius: 12,
-              paddingInline: 18,
+              minHeight: 44,
+              borderRadius: 6,
+              paddingInline: 16,
               boxShadow: "none",
               transition:
                 "background-color 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease",
               "&:active": { transform: "translateY(1px)" },
             },
             contained: {
-              boxShadow: light
-                ? `0 8px 20px ${alpha(emerald[700], 0.18)}`
-                : `0 8px 24px ${alpha(emerald[400], 0.12)}`,
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.10)",
               "&:hover": {
-                boxShadow: light
-                  ? `0 10px 26px ${alpha(emerald[700], 0.24)}`
-                  : `0 10px 28px ${alpha(emerald[400], 0.18)}`,
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.14)",
               },
             },
             outlined: { borderColor: divider },
@@ -159,7 +156,7 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
             root: {
               width: 44,
               height: 44,
-              borderRadius: 12,
+              borderRadius: 6,
               transition: "background-color 160ms ease, color 160ms ease",
             },
           },
@@ -170,8 +167,8 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
         MuiOutlinedInput: {
           styleOverrides: {
             root: {
-              minHeight: 50,
-              borderRadius: 12,
+              minHeight: 44,
+              borderRadius: 6,
               backgroundColor: light ? "#FBFCFB" : "#0C1512",
               "& .MuiOutlinedInput-notchedOutline": { borderColor: divider },
               "&:hover .MuiOutlinedInput-notchedOutline": {
@@ -201,7 +198,7 @@ export function ColorModeProvider({ children }: PropsWithChildren) {
         MuiToggleButton: {
           styleOverrides: {
             root: {
-              minHeight: 46,
+              minHeight: 44,
               borderColor: divider,
               textTransform: "none",
               fontWeight: 700,
