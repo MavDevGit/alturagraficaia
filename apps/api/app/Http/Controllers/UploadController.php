@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Services\FalClient;
+use App\Services\FalProxyClient;
 use App\Support\ApiPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,7 +68,7 @@ class UploadController extends Controller
         ], 201);
     }
 
-    public function complete(Request $request, Asset $asset, FalClient $fal): JsonResponse
+    public function complete(Request $request, Asset $asset, FalClient $fal, FalProxyClient $proxy): JsonResponse
     {
         abort_unless($asset->user_id === $request->user()->id || $request->user()->isAdmin(), 404);
         if ($asset->kind !== 'original' || ! in_array($asset->status, ['pending', 'ready'], true)) {
@@ -80,7 +81,9 @@ class UploadController extends Controller
             throw ValidationException::withMessages(['asset' => 'La URL temporal de carga no es válida.']);
         }
 
-        $probe = Http::connectTimeout(5)->timeout(15)->head($asset->external_url);
+        $probe = $proxy->configured()
+            ? $proxy->request('HEAD', '/v1/media/probe?url='.rawurlencode($asset->external_url))
+            : Http::connectTimeout(5)->timeout(15)->head($asset->external_url);
         if (! $probe->successful()) {
             throw ValidationException::withMessages([
                 'asset' => 'FAL todavía no confirma la carga completa del archivo.',

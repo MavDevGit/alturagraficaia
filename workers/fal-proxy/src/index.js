@@ -84,7 +84,7 @@ export async function handleRequest(
     "Cache-Control": "no-store",
     "Content-Type": upstream.headers.get("content-type") || "application/json",
   });
-  for (const name of ["x-fal-request-id", "retry-after"]) {
+  for (const name of ["content-length", "x-fal-request-id", "retry-after"]) {
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }
@@ -111,6 +111,32 @@ export function resolveTarget(method, requestUrl, allowedWebhookOrigin) {
 
   if (method === "GET" && requestUrl.pathname === "/v1/rest/.well-known/jwks.json" && requestUrl.search === "") {
     return { authenticated: false, url: "https://rest.fal.ai/.well-known/jwks.json" };
+  }
+
+  if (method === "HEAD" && requestUrl.pathname === "/v1/media/probe") {
+    const targetValues = requestUrl.searchParams.getAll("url");
+    if (requestUrl.searchParams.size !== 1 || targetValues.length !== 1) {
+      return jsonResponse({ error: "A single media URL is required" }, 400);
+    }
+
+    let targetUrl;
+    try {
+      targetUrl = new URL(targetValues[0]);
+    } catch {
+      return jsonResponse({ error: "Invalid media URL" }, 400);
+    }
+    if (
+      targetUrl.protocol !== "https:" ||
+      targetUrl.port !== "" ||
+      targetUrl.username !== "" ||
+      targetUrl.password !== "" ||
+      targetUrl.hash !== "" ||
+      (targetUrl.hostname !== "fal.media" && !targetUrl.hostname.endsWith(".fal.media"))
+    ) {
+      return jsonResponse({ error: "Media URL is not allowed" }, 403);
+    }
+
+    return { authenticated: false, url: targetUrl.toString() };
   }
 
   if (requestUrl.pathname.startsWith("/v1/queue/")) {
