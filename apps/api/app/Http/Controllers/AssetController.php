@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Services\AssetAccessToken;
+use App\Services\FalProxyClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,6 +36,24 @@ class AssetController extends Controller
         abort_unless($asset->external_url, 404);
 
         return redirect()->away($asset->external_url, 302, ['Cache-Control' => 'private, no-store']);
+    }
+
+    public function thumbnail(
+        Request $request,
+        Asset $asset,
+        AssetAccessToken $tokens,
+        FalProxyClient $proxy,
+    ): Response {
+        abort_unless($tokens->valid($asset, $request->query('token'), 'thumbnail'), 401);
+        abort_unless($asset->status === 'ready' && $asset->external_url, 404);
+
+        $thumbnailUrl = $proxy->thumbnailUrl(
+            $asset->external_url,
+            config('altura.asset_thumbnail_token_ttl'),
+        );
+        abort_unless($thumbnailUrl, 503);
+
+        return redirect()->away($thumbnailUrl, 302, ['Cache-Control' => 'private, no-store']);
     }
 
     public function download(Request $request, Asset $asset): JsonResponse

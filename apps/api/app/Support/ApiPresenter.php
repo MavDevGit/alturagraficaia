@@ -4,12 +4,19 @@ namespace App\Support;
 
 use App\Models\Asset;
 use App\Models\Job;
+use App\Services\AssetAccessToken;
 
 class ApiPresenter
 {
     /** @return array<string,mixed> */
     public static function asset(Asset $asset): array
     {
+        $thumbnailToken = app(AssetAccessToken::class)->issue(
+            $asset,
+            config('altura.asset_viewer_token_ttl'),
+            'thumbnail',
+        );
+
         return [
             'id' => $asset->id,
             'kind' => $asset->kind,
@@ -19,6 +26,7 @@ class ApiPresenter
             'mime_type' => $asset->mime_type,
             'byte_size' => $asset->byte_size,
             'viewer_url' => route('assets.viewer', $asset),
+            'thumbnail_url' => route('assets.thumbnail', ['asset' => $asset, 'token' => $thumbnailToken]),
             'download_url' => route('assets.download', $asset),
             'expires_at' => $asset->expires_at?->toIso8601String(),
         ];

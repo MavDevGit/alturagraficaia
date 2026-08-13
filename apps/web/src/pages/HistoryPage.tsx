@@ -57,12 +57,49 @@ function extensionFor(job: Job): string {
 }
 
 function HistoryThumbnail({ job }: { job: Job }) {
+  const asset = displayedAsset(job);
+  const fallbackThumbnailUrl =
+    asset.id === job.source_asset.id
+      ? undefined
+      : job.source_asset.thumbnail_url;
+  const [thumbnailUrl, setThumbnailUrl] = useState(asset.thumbnail_url);
+  const [thumbnailState, setThumbnailState] = useState<
+    "loading" | "loaded" | "failed"
+  >(asset.status === "ready" && thumbnailUrl ? "loading" : "failed");
+
   return (
     <Box
-      className="history-card-visual"
-      aria-label={`${displayedAsset(job).width} por ${displayedAsset(job).height} píxeles`}
+      className={`history-card-visual ${thumbnailState === "loaded" ? "has-thumbnail" : ""}`}
+      aria-label={`${asset.width} por ${asset.height} píxeles`}
     >
-      <ImageNotSupportedRounded />
+      {asset.status === "ready" &&
+        thumbnailUrl &&
+        thumbnailState !== "failed" && (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            fetchPriority="low"
+            width={asset.width}
+            height={asset.height}
+            onLoad={() => setThumbnailState("loaded")}
+            onError={() => {
+              if (
+                fallbackThumbnailUrl &&
+                thumbnailUrl !== fallbackThumbnailUrl
+              ) {
+                setThumbnailUrl(fallbackThumbnailUrl);
+                return;
+              }
+              setThumbnailState("failed");
+            }}
+          />
+        )}
+      {thumbnailState === "loading" && (
+        <CircularProgress size={24} aria-label="Cargando previsualización" />
+      )}
+      {thumbnailState === "failed" && <ImageNotSupportedRounded />}
     </Box>
   );
 }

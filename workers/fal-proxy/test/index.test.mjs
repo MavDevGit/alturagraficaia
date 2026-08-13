@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { handleRequest, signCanonical } from "../src/index.js";
+import { handleRequest, signCanonical, signThumbnailCanonical } from "../src/index.js";
 
 const secret = "proxy-test-secret-with-at-least-thirty-two-characters";
 const now = 1_786_579_200;
@@ -86,6 +86,74 @@ test("probes only HTTPS media hosted below fal.media without exposing the FAL ke
   const evilPath = `/v1/media/probe?url=${encodeURIComponent("https://fal.media.evil.example/file.png")}`;
   const forbidden = await signedRequest(evilPath, { method: "HEAD" });
   assert.equal((await handleRequest(forbidden, env, fetch, now)).status, 403);
+});
+
+test("serves only signed, resized thumbnails without forwarding the full image", async () => {
+  const source = "https://v3b.fal.media/files/example/result.png";
+  const expires = String(now + 900);
+  const signature = await signThumbnailCanonical(secret, expires, source);
+  const path = `/media/thumbnail?source=${encodeURIComponent(source)}&expires=${expires}&signature=${signature}`;
+  let forwarded;
+  const response = await handleRequest(
+    new Request(`https://proxy.example${path}`),
+    env,
+    async (url, init) => {
+      forwarded = { url, init };
+      return new Response("thumbnail", {
+        headers: {
+          "Cf-Resized": "internal=ok",
+          "Content-Length": "9",
+          "Content-Type": "image/webp",
+        },
+      });
+    },
+    now,
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Content-Type"), "image/webp");
+  assert.equal(forwarded.url, source);
+  assert.deepEqual(forwarded.init.cf.image, {
+    anim: false,
+    fit: "scale-down",
+    format: "webp",
+    height: 352,
+    metadata: "none",
+    quality: 74,
+    width: 640,
+  });
+});
+
+test("rejects expired, tampered, non-FAL, and untransformed thumbnail responses", async () => {
+  const source = "https://v3b.fal.media/files/example/result.png";
+  const expires = String(now + 900);
+  const signature = await signThumbnailCanonical(secret, expires, source);
+  const validPath = `/media/thumbnail?source=${encodeURIComponent(source)}&expires=${expires}&signature=${signature}`;
+
+  const tampered = new Request(`https://proxy.example${validPath.replace("result.png", "other.png")}`);
+  assert.equal((await handleRequest(tampered, env, fetch, now)).status, 401);
+
+  const expiredAt = String(now - 1);
+  const expiredSignature = await signThumbnailCanonical(secret, expiredAt, source);
+  const expired = new Request(
+    `https://proxy.example/media/thumbnail?source=${encodeURIComponent(source)}&expires=${expiredAt}&signature=${expiredSignature}`,
+  );
+  assert.equal((await handleRequest(expired, env, fetch, now)).status, 401);
+
+  const evil = "https://fal.media.evil.example/result.png";
+  const evilSignature = await signThumbnailCanonical(secret, expires, evil);
+  const forbidden = new Request(
+    `https://proxy.example/media/thumbnail?source=${encodeURIComponent(evil)}&expires=${expires}&signature=${evilSignature}`,
+  );
+  assert.equal((await handleRequest(forbidden, env, fetch, now)).status, 403);
+
+  const original = await handleRequest(
+    new Request(`https://proxy.example${validPath}`),
+    env,
+    async () => new Response("full image", { headers: { "Content-Type": "image/png" } }),
+    now,
+  );
+  assert.equal(original.status, 502);
 });
 
 test("rejects unsigned, stale, tampered, and open-proxy requests", async () => {

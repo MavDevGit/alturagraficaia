@@ -14,6 +14,7 @@ Route::post('/internal/fal-webhook', FalWebhookController::class)
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/assets/{asset}/content', [AssetController::class, 'content'])->name('assets.content');
+    Route::get('/assets/{asset}/thumbnail', [AssetController::class, 'thumbnail'])->name('assets.thumbnail');
     Route::middleware('firebase')->group(function (): void {
         Route::get('/me', fn (Request $request) => $request->user()->only(['id', 'name', 'email', 'role', 'credit_balance', 'avatar_url']));
         Route::post('/uploads/initiate', [UploadController::class, 'initiate'])->middleware('throttle:uploads');

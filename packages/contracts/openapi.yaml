@@ -253,7 +253,7 @@ components:
         expandRight: { type: integer, minimum: 0, maximum: 4096 }
     Asset:
       type: object
-      required: [id, kind, status, width, height, viewer_url, download_url]
+      required: [id, kind, status, width, height, viewer_url, thumbnail_url, download_url]
       properties:
         id: { type: string, format: uuid }
         kind: { type: string, enum: [original, result] }
@@ -264,6 +264,7 @@ components:
         byte_size: { type: integer, minimum: 0 }
         expires_at: { type: string, format: date-time }
         viewer_url: { type: string }
+        thumbnail_url: { type: string, format: uri }
         download_url: { type: string }
     Job:
       type: object

@@ -1014,8 +1014,11 @@
   }
 
   .history-card-visual {
+    position: relative;
     display: grid;
+    height: 11rem;
     min-height: 11rem;
+    overflow: hidden;
     place-items: center;
     border: 1px solid var(--border);
     border-radius: 0.6rem;
@@ -1032,6 +1035,20 @@
       -8px 0;
     background-size: 16px 16px;
     color: var(--faint);
+  }
+
+  .history-card-visual img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .history-card-visual.has-thumbnail img {
+    opacity: 1;
   }
 
   .history-card-visual svg {

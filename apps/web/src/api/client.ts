@@ -154,6 +154,7 @@ export type Asset = {
   mime_type: string;
   byte_size: number;
   viewer_url: string;
+  thumbnail_url?: string;
   download_url: string;
   expires_at?: string;
 };

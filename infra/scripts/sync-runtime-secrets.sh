@@ -95,6 +95,7 @@ if ! grep -q '^APP_KEY=' "$TEMP"; then
   append_if_missing SESSION_SECURE_COOKIE true
   append_if_missing SESSION_SAME_SITE lax
   append_if_missing DB_QUEUE_TABLE queue_jobs
+  append_if_missing ASSET_THUMBNAIL_TOKEN_TTL 900
   append_if_missing DB_QUEUE_RETRY_AFTER 1000
   append_if_missing ASSET_TTL_DAYS 7
   append_if_missing ASSET_VIEWER_TOKEN_TTL 14400

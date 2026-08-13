@@ -16,7 +16,7 @@ Laravel inicia una URL de carga firmada y devuelve solo sus metadatos al navegad
 
 La VM permanece sin IPv4 publica. Las solicitudes de control hacia FAL (tickets, cola, cancelaciones y JWKS) salen por IPv6 hacia un Worker autenticado con HMAC, que limita destinos y metodos antes de conectarse a FAL. La clave FAL vive unicamente en el secreto del Worker. Los binarios de imagen no atraviesan el proxy ni Laravel.
 
-El visor y la descarga usan la imagen completa del CDN de FAL. No se generan archivos derivados para comparar, por lo que el zoom por sectores es solo renderizado del visor en el navegador y no procesamiento del servidor.
+El visor y la descarga usan la imagen completa del CDN de FAL. El historial solicita miniaturas WebP de hasta 640 × 352 mediante una URL temporal firmada; el Worker las transforma y cachea en el borde sin pasar los binarios por Laravel. Si Cloudflare no confirma la transformación, el Worker rechaza la respuesta para evitar entregar accidentalmente el original pesado. No se generan archivos derivados para comparar, por lo que el zoom por sectores es solo renderizado del visor en el navegador y no procesamiento del servidor.
 
 ## Historial y retencion
 

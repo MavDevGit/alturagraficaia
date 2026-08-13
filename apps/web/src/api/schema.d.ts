@@ -298,6 +298,8 @@ export interface components {
             /** Format: date-time */
             expires_at?: string;
             viewer_url: string;
+            /** Format: uri */
+            thumbnail_url: string;
             download_url: string;
         };
         Job: {

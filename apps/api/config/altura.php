@@ -9,6 +9,7 @@ return [
     'fal_proxy_hmac_secret' => env('FAL_PROXY_HMAC_SECRET', ''),
     'asset_ttl_days' => (int) env('ASSET_TTL_DAYS', 7),
     'asset_viewer_token_ttl' => (int) env('ASSET_VIEWER_TOKEN_TTL', 14400),
+    'asset_thumbnail_token_ttl' => (int) env('ASSET_THUMBNAIL_TOKEN_TTL', 900),
     'initial_credits' => (int) env('INITIAL_CREDITS', 20),
     'max_upload_kb' => (int) env('MAX_UPLOAD_KB', 51200),
     'max_input_side' => (int) env('MAX_INPUT_SIDE', 20000),

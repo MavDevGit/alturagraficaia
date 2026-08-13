@@ -8,6 +8,23 @@ use RuntimeException;
 
 class FalProxyClient
 {
+    public function thumbnailUrl(string $mediaUrl, int $ttlSeconds = 900): ?string
+    {
+        if (! $this->configured() || ! $this->isAllowedMediaUrl($mediaUrl)) {
+            return null;
+        }
+
+        $expires = time() + max(60, min(3600, $ttlSeconds));
+        $payload = "thumbnail:v1\n{$expires}\n{$mediaUrl}";
+        $signature = hash_hmac('sha256', $payload, (string) config('altura.fal_proxy_hmac_secret'));
+
+        return rtrim((string) config('altura.fal_proxy_url'), '/').'/media/thumbnail?'.http_build_query([
+            'source' => $mediaUrl,
+            'expires' => $expires,
+            'signature' => $signature,
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
     public function configured(): bool
     {
         $url = rtrim((string) config('altura.fal_proxy_url'), '/');
@@ -49,5 +66,13 @@ class FalProxyClient
         }
 
         return $request->send($method, rtrim((string) config('altura.fal_proxy_url'), '/').$pathAndQuery);
+    }
+
+    private function isAllowedMediaUrl(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        return $scheme === 'https' && ($host === 'fal.media' || str_ends_with($host, '.fal.media'));
     }
 }

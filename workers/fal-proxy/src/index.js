@@ -1,5 +1,7 @@
 const MAX_CLOCK_SKEW_SECONDS = 300;
 const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_THUMBNAIL_TTL_SECONDS = 3600;
+const MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024;
 const SEGMENT_PATTERN = /^[A-Za-z0-9._-]+$/;
 const SUBMIT_MODELS = new Set([
   "fal-ai/seedvr/upscale/image",
@@ -23,6 +25,10 @@ export async function handleRequest(
   const requestUrl = new URL(request.url);
   if (request.method === "GET" && requestUrl.pathname === "/healthz" && requestUrl.search === "") {
     return jsonResponse({ ok: true });
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/media/thumbnail") {
+    return handleThumbnailRequest(requestUrl, env, upstreamFetch, nowSeconds);
   }
 
   if (!env.FAL_KEY || !env.PROXY_HMAC_SECRET || !env.ALLOWED_WEBHOOK_ORIGIN) {
@@ -85,6 +91,101 @@ export async function handleRequest(
     "Content-Type": upstream.headers.get("content-type") || "application/json",
   });
   for (const name of ["content-length", "x-fal-request-id", "retry-after"]) {
+    const value = upstream.headers.get(name);
+    if (value) responseHeaders.set(name, value);
+  }
+
+  return new Response(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: responseHeaders,
+  });
+}
+
+async function handleThumbnailRequest(requestUrl, env, upstreamFetch, nowSeconds) {
+  if (!env.PROXY_HMAC_SECRET) {
+    return jsonResponse({ error: "Thumbnail service is not configured" }, 503);
+  }
+
+  const sources = requestUrl.searchParams.getAll("source");
+  const expirations = requestUrl.searchParams.getAll("expires");
+  const signatures = requestUrl.searchParams.getAll("signature");
+  if (
+    requestUrl.searchParams.size !== 3 ||
+    sources.length !== 1 ||
+    expirations.length !== 1 ||
+    signatures.length !== 1
+  ) {
+    return jsonResponse({ error: "Invalid thumbnail request" }, 400);
+  }
+
+  const source = sources[0];
+  const expires = expirations[0];
+  const signature = signatures[0];
+  if (!/^\d{10,11}$/.test(expires) || !/^[a-f0-9]{64}$/.test(signature)) {
+    return jsonResponse({ error: "Invalid thumbnail signature" }, 401);
+  }
+
+  const expiresAt = Number(expires);
+  if (expiresAt < nowSeconds || expiresAt > nowSeconds + MAX_THUMBNAIL_TTL_SECONDS + MAX_CLOCK_SKEW_SECONDS) {
+    return jsonResponse({ error: "Thumbnail URL has expired" }, 401);
+  }
+
+  let sourceUrl;
+  try {
+    sourceUrl = new URL(source);
+  } catch {
+    return jsonResponse({ error: "Invalid media URL" }, 400);
+  }
+  if (!isAllowedMediaUrl(sourceUrl)) {
+    return jsonResponse({ error: "Media URL is not allowed" }, 403);
+  }
+
+  const expected = await signThumbnailCanonical(env.PROXY_HMAC_SECRET, expires, source);
+  if (!constantTimeHexEqual(expected, signature)) {
+    return jsonResponse({ error: "Invalid thumbnail signature" }, 401);
+  }
+
+  let upstream;
+  try {
+    upstream = await upstreamFetch(sourceUrl.toString(), {
+      redirect: "follow",
+      cf: {
+        image: {
+          anim: false,
+          fit: "scale-down",
+          format: "webp",
+          height: 352,
+          metadata: "none",
+          quality: 74,
+          width: 640,
+        },
+      },
+    });
+  } catch {
+    return jsonResponse({ error: "Thumbnail source is temporarily unavailable" }, 502);
+  }
+
+  const resized = upstream.headers.get("cf-resized");
+  const contentType = upstream.headers.get("content-type") || "";
+  const contentLength = Number(upstream.headers.get("content-length") || 0);
+  if (
+    !upstream.ok ||
+    !resized ||
+    resized.includes("err=") ||
+    !contentType.toLowerCase().startsWith("image/") ||
+    (contentLength > 0 && contentLength > MAX_THUMBNAIL_BYTES)
+  ) {
+    return jsonResponse({ error: "The image could not be transformed safely" }, 502);
+  }
+
+  const maxAge = Math.max(0, Math.min(3600, expiresAt - nowSeconds));
+  const responseHeaders = new Headers({
+    "Cache-Control": `private, max-age=${maxAge}, immutable`,
+    "Content-Type": contentType,
+    "X-Content-Type-Options": "nosniff",
+  });
+  for (const name of ["content-length", "etag", "last-modified"]) {
     const value = upstream.headers.get(name);
     if (value) responseHeaders.set(name, value);
   }
@@ -201,6 +302,18 @@ export async function signCanonical(secret, timestamp, method, pathAndQuery, bod
   return bytesToHex(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(canonical))));
 }
 
+export async function signThumbnailCanonical(secret, expires, source) {
+  const canonical = ["thumbnail:v1", expires, source].join("\n");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return bytesToHex(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(canonical))));
+}
+
 async function validSignature(request, requestUrl, body, secret, nowSeconds) {
   const timestamp = request.headers.get("x-altura-timestamp") || "";
   const supplied = request.headers.get("x-altura-signature") || "";
@@ -224,6 +337,17 @@ function safeSegments(suffix) {
     return null;
   }
   return parts;
+}
+
+function isAllowedMediaUrl(url) {
+  return (
+    url.protocol === "https:" &&
+    url.port === "" &&
+    url.username === "" &&
+    url.password === "" &&
+    url.hash === "" &&
+    (url.hostname === "fal.media" || url.hostname.endsWith(".fal.media"))
+  );
 }
 
 async function sha256Hex(value) {
