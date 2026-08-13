@@ -59,6 +59,7 @@ it('stores the FAL result URL and captures credits exactly once', function (): v
     expect($job->fresh()->status)->toBe('completed')
         ->and($result->fresh()->external_url)->toBe($resultUrl)
         ->and($result->fresh()->byte_size)->toBe(750_000_000)
+        ->and($result->fresh()->expires_at->greaterThan(now()->addDays(6)))->toBeTrue()
         ->and($user->fresh()->credit_balance)->toBe(18)
         ->and(CreditLedger::query()->where('type', 'capture')->count())->toBe(1);
 });

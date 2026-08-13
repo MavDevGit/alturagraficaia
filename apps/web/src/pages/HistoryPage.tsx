@@ -33,6 +33,32 @@ const statusLabels: Record<Job["status"], string> = {
   cancelled: "Cancelado",
 };
 
+function historyStatus(job: Job): {
+  label: string;
+  color: "success" | "error" | "default";
+} {
+  if (job.status === "completed" && job.result_asset?.status === "expired") {
+    return { label: "Archivo vencido", color: "default" };
+  }
+  if (job.status === "completed" && job.result_asset?.status === "failed") {
+    return { label: "No disponible", color: "error" };
+  }
+
+  return {
+    label: statusLabels[job.status],
+    color:
+      job.status === "completed"
+        ? "success"
+        : job.status === "failed"
+          ? "error"
+          : "default",
+  };
+}
+
+function hasAvailableResult(job: Job): boolean {
+  return job.status === "completed" && job.result_asset?.status === "ready";
+}
+
 const toolLabels: Record<Job["tool"], string> = {
   upscaler: "Escalador IA",
   "background-remover": "Quitar fondo",
@@ -201,14 +227,8 @@ export function HistoryPage() {
                   {toolLabels[job.tool]}
                 </Typography>
                 <Chip
-                  label={statusLabels[job.status]}
-                  color={
-                    job.status === "completed"
-                      ? "success"
-                      : job.status === "failed"
-                        ? "error"
-                        : "default"
-                  }
+                  label={historyStatus(job).label}
+                  color={historyStatus(job).color}
                   size="small"
                 />
               </Stack>
@@ -221,7 +241,7 @@ export function HistoryPage() {
                   {job.credits} crédito{job.credits === 1 ? "" : "s"}
                 </Typography>
               </Box>
-              {job.result_asset && job.status === "completed" && (
+              {hasAvailableResult(job) && (
                 <Box className="history-card-footer">
                   <Box className="history-card-actions">
                     <Button

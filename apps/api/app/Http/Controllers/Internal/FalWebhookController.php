@@ -83,6 +83,7 @@ class FalWebhookController extends Controller
                 'height' => $height,
                 'byte_size' => $result['byte_size'] ?? 0,
                 'mime_type' => $mimeType,
+                'expires_at' => now()->addDays(config('altura.asset_ttl_days')),
             ]);
             $job->update(['status' => 'completed', 'finished_at' => now()]);
             $credits->confirm($job);
