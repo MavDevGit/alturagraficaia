@@ -41,6 +41,9 @@ function Ensure-Secret([string]$Name) {
 & $Gcloud services enable compute.googleapis.com iap.googleapis.com storage.googleapis.com secretmanager.googleapis.com monitoring.googleapis.com billingbudgets.googleapis.com iamcredentials.googleapis.com sts.googleapis.com identitytoolkit.googleapis.com --project $ProjectId
 Assert-Gcloud 'habilitar APIs necesarias'
 
+& $Gcloud compute networks subnets update $Subnet --region=$Region --project=$ProjectId --enable-private-ip-google-access --quiet
+Assert-Gcloud 'habilitar acceso privado a las APIs de Google'
+
 if (-not (Test-Gcloud @('storage', 'buckets', 'describe', "gs://$BackupBucketName"))) {
   & $Gcloud storage buckets create "gs://$BackupBucketName" --project=$ProjectId --location=$Region --uniform-bucket-level-access --soft-delete-duration=7d
   Assert-Gcloud 'crear bucket de backups'
@@ -51,25 +54,15 @@ Assert-Gcloud 'asegurar bucket privado de backups'
 Ensure-ServiceAccount 'shared-vm-runtime' 'Shared production VM runtime'
 Ensure-ServiceAccount 'github-altura-deploy' 'GitHub Altura deploy'
 Ensure-Secret 'fal-key'
+Ensure-Secret 'fal-proxy-hmac-secret'
+Ensure-Secret 'fal-proxy-url'
 Ensure-Secret 'backup-encryption-key'
 
-$Router = 'shared-vm-egress-router'
-$Nat = 'shared-vm-egress-nat'
-if (-not (Test-Gcloud @('compute', 'routers', 'describe', $Router, '--region', $Region, '--project', $ProjectId))) {
-  & $Gcloud compute routers create $Router --network=$Network --region=$Region --project=$ProjectId --quiet
-  Assert-Gcloud 'crear router de salida de la VM'
-}
-if (-not (Test-Gcloud @('compute', 'routers', 'nats', 'describe', $Nat, '--router', $Router, '--region', $Region, '--project', $ProjectId))) {
-  & $Gcloud compute routers nats create $Nat --router=$Router --region=$Region --project=$ProjectId `
-    --nat-custom-subnet-ip-ranges=$Subnet --auto-allocate-nat-external-ips `
-    --enable-endpoint-independent-mapping --min-ports-per-vm=64 --quiet
-  Assert-Gcloud 'crear salida IPv4 privada para FAL'
-}
-
 & $Gcloud storage buckets add-iam-policy-binding "gs://$BackupBucketName" --member="serviceAccount:$VmSa" --role=roles/storage.objectAdmin | Out-Null
-foreach ($secret in @('fal-key', 'backup-encryption-key')) {
+foreach ($secret in @('fal-proxy-hmac-secret', 'fal-proxy-url', 'backup-encryption-key')) {
   & $Gcloud secrets add-iam-policy-binding $secret --project=$ProjectId --member="serviceAccount:$VmSa" --role=roles/secretmanager.secretAccessor | Out-Null
 }
+& $Gcloud secrets remove-iam-policy-binding fal-key --project=$ProjectId --member="serviceAccount:$VmSa" --role=roles/secretmanager.secretAccessor --quiet 2>$null | Out-Null
 Assert-Gcloud 'autorizar backup y secretos del runtime'
 
 & $Gcloud projects add-iam-policy-binding $ProjectId --member="serviceAccount:$VmSa" --role=roles/logging.logWriter | Out-Null
@@ -83,4 +76,4 @@ Assert-Gcloud 'autorizar runtime de VM'
 & $Gcloud iam service-accounts add-iam-policy-binding $VmSa --project=$ProjectId --member="serviceAccount:$DeploySa" --role=roles/iam.serviceAccountUser | Out-Null
 Assert-Gcloud 'autorizar despliegue de VM desde GitHub'
 
-Write-Host 'Infraestructura minima preparada: VM privada con salida FAL, PostgreSQL y backup cifrado.'
+Write-Host 'Infraestructura minima preparada: VM privada, proxy FAL, PostgreSQL y backup cifrado.'

@@ -5,6 +5,8 @@ return [
     'firebase_project_id' => env('FIREBASE_PROJECT_ID', 'altura-grafica-ia'),
     'firebase_emulator_host' => env('FIREBASE_AUTH_EMULATOR_HOST'),
     'fal_key' => env('FAL_KEY', ''),
+    'fal_proxy_url' => env('FAL_PROXY_URL', ''),
+    'fal_proxy_hmac_secret' => env('FAL_PROXY_HMAC_SECRET', ''),
     'asset_ttl_days' => (int) env('ASSET_TTL_DAYS', 7),
     'asset_viewer_token_ttl' => (int) env('ASSET_VIEWER_TOKEN_TTL', 14400),
     'initial_credits' => (int) env('INITIAL_CREDITS', 20),
@@ -18,8 +20,11 @@ return [
     'job_stale_minutes' => (int) env('JOB_STALE_MINUTES', 720),
     'secret_status' => [
         'fal' => [
-            'configured' => (string) env('FAL_KEY', '') !== '',
-            'rotated_at' => env('FAL_KEY_ROTATED_AT'),
+            'configured' => (string) env('FAL_KEY', '') !== '' || (
+                str_starts_with((string) env('FAL_PROXY_URL', ''), 'https://')
+                && strlen((string) env('FAL_PROXY_HMAC_SECRET', '')) >= 32
+            ),
+            'rotated_at' => env('FAL_PROXY_ROTATED_AT', env('FAL_KEY_ROTATED_AT')),
         ],
     ],
 ];

@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "workers/fal-proxy"
   ],
   "overrides": {
     "js-yaml": "4.3.1",
@@ -37,7 +38,9 @@
     "build": "npm run build -w apps/web",
     "build:local": "npm run build:local-production -w apps/web",
     "lint": "npm run lint -w apps/web",
-    "test": "npm run test -w apps/web && npm run test:api",
+    "test": "npm run test -w apps/web && npm run test:api && npm run test:fal-proxy",
+    "test:fal-proxy": "npm run test -w workers/fal-proxy",
+    "deploy:fal-proxy": "npm run deploy -w workers/fal-proxy",
     "test:api": "node scripts/run-api-tests.mjs",
     "test:api:postgres": "node scripts/run-api-tests.mjs --postgres",
     "test:e2e": "playwright test",

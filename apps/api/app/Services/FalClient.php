@@ -11,15 +11,23 @@ use RuntimeException;
 
 class FalClient
 {
+    public function __construct(private readonly FalProxyClient $proxy) {}
+
     /** @return array{upload_url:string,file_url:string} */
     public function initiateUpload(string $fileName, string $mimeType): array
     {
-        $response = $this->client()
-            ->withHeader('X-Fal-Object-Lifecycle-Preference', $this->lifecycleHeader())
-            ->post('https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3', [
-                'file_name' => $fileName,
-                'content_type' => $mimeType,
-            ])->throw()->json();
+        $payload = ['file_name' => $fileName, 'content_type' => $mimeType];
+        $headers = ['X-Fal-Object-Lifecycle-Preference' => $this->lifecycleHeader()];
+        $response = $this->proxy->configured()
+            ? $this->proxy->request(
+                'POST',
+                '/v1/rest-alpha/storage/upload/initiate?storage_type=fal-cdn-v3',
+                $payload,
+                $headers,
+            )->throw()->json()
+            : $this->client()->withHeaders($headers)
+                ->post('https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3', $payload)
+                ->throw()->json();
 
         $uploadUrl = $response['upload_url'] ?? null;
         $fileUrl = $response['file_url'] ?? null;
@@ -43,10 +51,13 @@ class FalClient
 
         $model = $this->modelFor($job->tool);
         $webhook = route('fal.webhook', ['job_id' => $job->id]);
-        $endpoint = 'https://queue.fal.run/'.$model.'?fal_webhook='.rawurlencode($webhook);
-        $response = $this->client()
-            ->withHeader('X-Fal-Object-Lifecycle-Preference', $this->lifecycleHeader())
-            ->post($endpoint, $this->modelInput($job, $sourceUrl))->throw()->json();
+        $query = '?fal_webhook='.rawurlencode($webhook);
+        $payload = $this->modelInput($job, $sourceUrl);
+        $headers = ['X-Fal-Object-Lifecycle-Preference' => $this->lifecycleHeader()];
+        $response = $this->proxy->configured()
+            ? $this->proxy->request('POST', '/v1/queue/'.$model.$query, $payload, $headers)->throw()->json()
+            : $this->client()->withHeaders($headers)
+                ->post('https://queue.fal.run/'.$model.$query, $payload)->throw()->json();
         $requestId = $response['request_id'] ?? null;
         if (! is_string($requestId) || $requestId === '') {
             throw new RuntimeException('FAL no devolvió request_id.');
@@ -61,9 +72,10 @@ class FalClient
             return;
         }
         $model = $this->queueModelId($this->modelFor($job->tool));
-        $response = $this->client()->put(
-            'https://queue.fal.run/'.$model.'/requests/'.rawurlencode($job->provider_job_id).'/cancel',
-        );
+        $path = $model.'/requests/'.rawurlencode($job->provider_job_id).'/cancel';
+        $response = $this->proxy->configured()
+            ? $this->proxy->request('PUT', '/v1/queue/'.$path)
+            : $this->client()->put('https://queue.fal.run/'.$path);
         if (! in_array($response->status(), [202, 400, 404], true)) {
             $response->throw();
         }

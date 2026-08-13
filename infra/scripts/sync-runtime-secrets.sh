@@ -14,24 +14,34 @@ ACCESS_TOKEN=$(printf '%s' "$TOKEN_RESPONSE" | php8.3 -r '$j=json_decode(stream_
 TOKEN_RESPONSE=
 if [[ -z "$PROJECT_ID" || -z "$ACCESS_TOKEN" ]]; then echo 'No se pudo obtener identidad de la VM.' >&2; exit 1; fi
 
-RESPONSE=$(curl -fsS --retry 3 -H "Authorization: Bearer $ACCESS_TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/fal-key/versions/latest:access")
-FAL_KEY=$(printf '%s' "$RESPONSE" | php8.3 -r '$j=json_decode(stream_get_contents(STDIN), true); echo base64_decode($j["payload"]["data"] ?? "", true) ?: "";')
-RESPONSE=
+fetch_secret() {
+  local name=$1 response
+  response=$(curl -fsS --retry 3 -H "Authorization: Bearer $ACCESS_TOKEN" \
+    "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/${name}/versions/latest:access")
+  printf '%s' "$response" | php8.3 -r '$j=json_decode(stream_get_contents(STDIN), true); echo base64_decode($j["payload"]["data"] ?? "", true) ?: "";'
+}
+
+FAL_PROXY_HMAC_SECRET=$(fetch_secret fal-proxy-hmac-secret)
+FAL_PROXY_URL=$(fetch_secret fal-proxy-url)
 ACCESS_TOKEN=
-if [[ ${#FAL_KEY} -lt 16 || "$FAL_KEY" =~ [[:space:]#] ]]; then
-  echo 'Secret Manager no devolvio una FAL_KEY valida.' >&2
+if [[ ${#FAL_PROXY_HMAC_SECRET} -lt 32 || "$FAL_PROXY_HMAC_SECRET" =~ [[:space:]#] ]]; then
+  echo 'Secret Manager no devolvio un secreto HMAC valido.' >&2
+  exit 1
+fi
+if [[ ! "$FAL_PROXY_URL" =~ ^https://[A-Za-z0-9.-]+/?$ ]]; then
+  echo 'Secret Manager no devolvio una URL HTTPS valida para el proxy FAL.' >&2
   exit 1
 fi
 
 TEMP=$(mktemp /etc/altura/runtime-env.XXXXXX)
 cleanup() {
   [[ "$TEMP" == /etc/altura/runtime-env.* ]] && rm -f -- "$TEMP"
-  FAL_KEY=
+  FAL_PROXY_HMAC_SECRET=
+  FAL_PROXY_URL=
 }
 trap cleanup EXIT
 
-grep -E '^(APP_.*|LOG_.*|DB_.*|SESSION_.*|ASSET_.*|MAX_.*|IMAGE_JOBS_.*|CACHE_STORE|QUEUE_CONNECTION|AUTH_DRIVER|FIREBASE_PROJECT_ID|FIREBASE_AUTH_EMULATOR_HOST|INITIAL_CREDITS|JOB_STALE_MINUTES|CORS_ALLOWED_ORIGINS|FAL_KEY_ROTATED_AT)=' "$ENV_FILE" > "$TEMP"
+grep -E '^(APP_.*|LOG_.*|DB_.*|SESSION_.*|ASSET_.*|MAX_.*|IMAGE_JOBS_.*|CACHE_STORE|QUEUE_CONNECTION|AUTH_DRIVER|FIREBASE_PROJECT_ID|FIREBASE_AUTH_EMULATOR_HOST|INITIAL_CREDITS|JOB_STALE_MINUTES|CORS_ALLOWED_ORIGINS|FAL_KEY_ROTATED_AT|FAL_PROXY_ROTATED_AT)=' "$ENV_FILE" > "$TEMP"
 
 append_if_missing() {
   local name=$1 value=$2
@@ -99,7 +109,8 @@ if ! grep -q '^APP_KEY=' "$TEMP"; then
   append_if_missing JOB_STALE_MINUTES 720
   append_if_missing CORS_ALLOWED_ORIGINS "$APP_URL_RECOVERED"
 fi
-printf 'FILESYSTEM_DISK=local\nFAL_KEY=%s\nFAL_KEY_CONFIGURED=true\n' "$FAL_KEY" >> "$TEMP"
+printf 'FILESYSTEM_DISK=local\nFAL_KEY=\nFAL_PROXY_URL=%s\nFAL_PROXY_HMAC_SECRET=%s\nFAL_KEY_CONFIGURED=true\n' \
+  "$FAL_PROXY_URL" "$FAL_PROXY_HMAC_SECRET" >> "$TEMP"
 install -o root -g altura -m 0640 "$TEMP" "$ENV_FILE"
 
 echo 'Entorno de runtime sincronizado con Secret Manager.'

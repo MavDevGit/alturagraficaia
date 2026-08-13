@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "altura-fal-egress-proxy",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-13",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "ALLOWED_WEBHOOK_ORIGIN": "https://alturagrafica.mavdev.cloud"
+  }
+}

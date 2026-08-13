@@ -70,8 +70,16 @@ class AppServiceProvider extends ServiceProvider
         if (config('altura.auth_driver') !== 'firebase' || config('altura.firebase_emulator_host')) {
             $failures[] = 'Firebase real debe ser el proveedor de autenticación';
         }
+        $falProxyUrl = (string) config('altura.fal_proxy_url');
+        $falProxySecret = (string) config('altura.fal_proxy_hmac_secret');
+        if (! str_starts_with($falProxyUrl, 'https://') || filter_var($falProxyUrl, FILTER_VALIDATE_URL) === false) {
+            $failures[] = 'FAL_PROXY_URL debe ser una URL HTTPS valida';
+        }
+        if (strlen($falProxySecret) < 32 || str_contains($falProxySecret, 'change-me')) {
+            $failures[] = 'FAL_PROXY_HMAC_SECRET debe provenir de Secret Manager';
+        }
         $falKey = (string) config('altura.fal_key');
-        if (strlen($falKey) < 16 || str_contains($falKey, 'change-me')) {
+        if ($falKey !== '') {
             $failures[] = 'FAL_KEY debe estar configurada únicamente en el servidor';
         }
 

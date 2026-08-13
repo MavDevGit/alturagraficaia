@@ -1,6 +1,9 @@
 param(
   [Parameter(Mandatory=$true)][string]$ProjectId,
-  [Parameter(Mandatory=$true)][string]$SourceEnvPath
+  [Parameter(Mandatory=$true)][string]$SourceEnvPath,
+  [Parameter(Mandatory=$true)]
+  [ValidatePattern('^https://[A-Za-z0-9.-]+/?$')]
+  [string]$FalProxyUrl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,10 +57,16 @@ if ($falValue.Length -lt 16 -or $falValue -match '\s') { throw 'La FAL_KEY local
 
 if (-not (Has-EnabledVersion 'fal-key')) { Add-SecretValue 'fal-key' $falValue }
 $falValue = $null
+if (-not (Has-EnabledVersion 'fal-proxy-hmac-secret')) {
+  $generated = New-RandomSecret
+  Add-SecretValue 'fal-proxy-hmac-secret' $generated
+  $generated = $null
+}
+if (-not (Has-EnabledVersion 'fal-proxy-url')) { Add-SecretValue 'fal-proxy-url' $FalProxyUrl.TrimEnd('/') }
 if (-not (Has-EnabledVersion 'backup-encryption-key')) {
   $generated = New-RandomSecret
   Add-SecretValue 'backup-encryption-key' $generated
   $generated = $null
 }
 
-Write-Output 'FAL y el cifrado de backups tienen una version habilitada.'
+Write-Output 'FAL, su proxy y el cifrado de backups tienen una version habilitada.'

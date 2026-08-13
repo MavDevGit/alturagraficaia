@@ -27,10 +27,11 @@ fetch_secret() {
   printf '%s' "$response" | php8.3 -r '$j=json_decode(stream_get_contents(STDIN), true); echo base64_decode($j["payload"]["data"] ?? "", true) ?: "";'
 }
 
-FAL_KEY=$(fetch_secret fal-key)
+FAL_PROXY_HMAC_SECRET=$(fetch_secret fal-proxy-hmac-secret)
+FAL_PROXY_URL=$(fetch_secret fal-proxy-url)
 BACKUP_KEY=$(fetch_secret backup-encryption-key)
-if [[ ${#FAL_KEY} -lt 16 || ${#BACKUP_KEY} -lt 32 ]]; then
-  echo 'Secret Manager no devolvio secretos de produccion validos.' >&2
+if [[ ${#FAL_PROXY_HMAC_SECRET} -lt 32 || ! "$FAL_PROXY_URL" =~ ^https://[A-Za-z0-9.-]+/?$ || ${#BACKUP_KEY} -lt 32 ]]; then
+  echo 'Secret Manager no devolvio proxy FAL y backup validos.' >&2
   exit 1
 fi
 
@@ -47,7 +48,7 @@ BACKUP_TEMP=$(mktemp /etc/altura/backup-env.XXXXXX)
 cleanup() {
   [[ "$ENV_TEMP" == /etc/altura/app-env.* ]] && rm -f -- "$ENV_TEMP"
   [[ "$BACKUP_TEMP" == /etc/altura/backup-env.* ]] && rm -f -- "$BACKUP_TEMP"
-  FAL_KEY=; BACKUP_KEY=; DB_PASSWORD=; APP_KEY=
+  FAL_PROXY_HMAC_SECRET=; FAL_PROXY_URL=; BACKUP_KEY=; DB_PASSWORD=; APP_KEY=
 }
 trap cleanup EXIT
 
@@ -80,7 +81,9 @@ AUTH_DRIVER=firebase
 FIREBASE_PROJECT_ID=altura-grafica-ia-6faf1
 FIREBASE_AUTH_EMULATOR_HOST=
 FILESYSTEM_DISK=local
-FAL_KEY=$FAL_KEY
+FAL_KEY=
+FAL_PROXY_URL=$FAL_PROXY_URL
+FAL_PROXY_HMAC_SECRET=$FAL_PROXY_HMAC_SECRET
 ASSET_TTL_DAYS=7
 ASSET_VIEWER_TOKEN_TTL=14400
 INITIAL_CREDITS=20
@@ -94,7 +97,7 @@ IMAGE_JOBS_HARD_LIMIT=100
 JOB_STALE_MINUTES=720
 CORS_ALLOWED_ORIGINS=$APP_URL
 FAL_KEY_CONFIGURED=true
-FAL_KEY_ROTATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+FAL_PROXY_ROTATED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
 install -o root -g altura -m 0640 "$ENV_TEMP" "$ENV_FILE"
 
