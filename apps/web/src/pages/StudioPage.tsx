@@ -29,6 +29,7 @@ import {
   ImagePlus as AddPhotoAlternateOutlined,
   SlidersHorizontal as SettingsSuggestRounded,
   WandSparkles as AutoFixHighRounded,
+  X as CloseRounded,
 } from "lucide-react";
 import { useParams, useSearchParams } from "react-router";
 import {
@@ -117,6 +118,7 @@ export function StudioPage() {
   const [searchParams] = useSearchParams();
   const restoredJobId = searchParams.get("job");
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const previewUrlsRef = useRef<Record<string, string>>({});
   const stagedFilesRef = useRef<Record<string, File>>({});
@@ -150,6 +152,7 @@ export function StudioPage() {
     stagedFilesRef.current = {};
     setPreviewUrls({});
     setAssets([]);
+    setSelectedAssetId(null);
     setJobIds(restoredJobId ? [restoredJobId] : []);
     setNotice(null);
     setFormat("png");
@@ -167,11 +170,13 @@ export function StudioPage() {
     () => ({ mode: scaleMode, scale, targetResolution }),
     [scale, scaleMode, targetResolution],
   );
-  const primaryUpscaleConfig = assets[0]
-    ? (upscaleConfigs[assets[0].id] ?? sharedUpscaleConfig)
+  const selectedAsset =
+    assets.find((asset) => asset.id === selectedAssetId) ?? assets[0];
+  const primaryUpscaleConfig = selectedAsset
+    ? (upscaleConfigs[selectedAsset.id] ?? sharedUpscaleConfig)
     : sharedUpscaleConfig;
-  const effectiveScale = assets[0]
-    ? effectiveScaleFor(assets[0], primaryUpscaleConfig)
+  const effectiveScale = selectedAsset
+    ? effectiveScaleFor(selectedAsset, primaryUpscaleConfig)
     : scale;
 
   const upload = useMutation({
@@ -197,7 +202,9 @@ export function StudioPage() {
         items.map(({ asset, file }) => [asset.id, file]),
       );
       setPreviewUrls(nextPreviews);
-      setAssets(items.map(({ asset }) => asset));
+      const preparedAssets = items.map(({ asset }) => asset);
+      setAssets(preparedAssets);
+      setSelectedAssetId(preparedAssets[0]?.id ?? null);
       setUpscaleConfigs(
         tool === "upscaler" && items.length > 1
           ? Object.fromEntries(
@@ -310,7 +317,13 @@ export function StudioPage() {
       previewUrlsRef.current = nextPreviews;
       setPreviewUrls(nextPreviews);
       stagedFilesRef.current = {};
-      setAssets(items.map(({ sourceAsset }) => sourceAsset));
+      const processedAssets = items.map(({ sourceAsset }) => sourceAsset);
+      setAssets(processedAssets);
+      setSelectedAssetId((current) =>
+        items.find((item) => item.localId === current)?.sourceAsset.id ??
+        processedAssets[0]?.id ??
+        null,
+      );
       setJobIds(jobs.map((job) => job.id));
       if (jobs[0]) {
         window.history.replaceState(
@@ -352,19 +365,32 @@ export function StudioPage() {
       }),
   });
 
-  const currentJob = useQuery({
-    queryKey: ["job", jobIds[0]],
-    queryFn: () => api<Job>(`/jobs/${jobIds[0]}`),
-    enabled: Boolean(jobIds[0]),
-    refetchInterval: (query) =>
-      terminalStatuses.includes(query.state.data?.status ?? "") ? false : 1200,
+  const selectedAssetIndex = selectedAsset
+    ? Math.max(
+        0,
+        assets.findIndex((asset) => asset.id === selectedAsset.id),
+      )
+    : 0;
+  const jobQueries = useQueries({
+    queries: jobIds.map((jobId) => ({
+      queryKey: ["job", jobId],
+      queryFn: () => api<Job>(`/jobs/${jobId}`),
+      refetchInterval: (query: { state: { data?: Job } }) =>
+        terminalStatuses.includes(query.state.data?.status ?? "")
+          ? false
+          : 1200,
+    })),
   });
+  const selectedJobQuery =
+    jobQueries[selectedAssetIndex] ?? jobQueries[0];
+  const selectedJob = selectedJobQuery?.data;
   useEffect(() => {
-    const job = currentJob.data;
+    const job = selectedJob;
     if (!restoredJobId || !job) return;
     setAssets((current) =>
       current[0]?.id === job.source_asset.id ? current : [job.source_asset],
     );
+    setSelectedAssetId(job.source_asset.id);
     const restoredFormat = job.settings.format;
     if (
       restoredFormat === "png" ||
@@ -407,21 +433,10 @@ export function StudioPage() {
         setFidelity(Math.min(1, Math.max(0, job.settings.fidelity)));
       }
     }
-  }, [currentJob.data, restoredJobId]);
-  const otherJobs = useQueries({
-    queries: jobIds.slice(1).map((jobId) => ({
-      queryKey: ["job", jobId],
-      queryFn: () => api<Job>(`/jobs/${jobId}`),
-      refetchInterval: (query: { state: { data?: Job } }) =>
-        terminalStatuses.includes(query.state.data?.status ?? "")
-          ? false
-          : 1200,
-    })),
-  });
-  const batchJobs = [
-    currentJob.data,
-    ...otherJobs.map((query) => query.data),
-  ].filter((job): job is Job => Boolean(job));
+  }, [restoredJobId, selectedJob]);
+  const batchJobs = jobQueries
+    .map((query) => query.data)
+    .filter((job): job is Job => Boolean(job));
   const completedJobs = batchJobs.filter(
     (job) => job.status === "completed",
   ).length;
@@ -433,18 +448,18 @@ export function StudioPage() {
     (batchJobs.length < jobIds.length ||
       batchJobs.some((job) => !terminalStatuses.includes(job.status)));
   const completed =
-    currentJob.data?.status === "completed" && currentJob.data.result_asset;
+    selectedJob?.status === "completed" && selectedJob.result_asset;
   const sourceViewer = useQuery({
-    queryKey: ["viewer", currentJob.data?.source_asset.id],
+    queryKey: ["viewer", selectedJob?.source_asset.id],
     queryFn: () =>
-      api<ViewerSource>(`/assets/${currentJob.data!.source_asset.id}/viewer`),
+      api<ViewerSource>(`/assets/${selectedJob!.source_asset.id}/viewer`),
     enabled: Boolean(completed),
     refetchInterval: (query) => (query.state.data?.ready ? false : 1000),
   });
   const resultViewer = useQuery({
-    queryKey: ["viewer", currentJob.data?.result_asset?.id],
+    queryKey: ["viewer", selectedJob?.result_asset?.id],
     queryFn: () =>
-      api<ViewerSource>(`/assets/${currentJob.data!.result_asset!.id}/viewer`),
+      api<ViewerSource>(`/assets/${selectedJob!.result_asset!.id}/viewer`),
     enabled: Boolean(completed),
     refetchInterval: (query) => (query.state.data?.ready ? false : 1000),
   });
@@ -458,8 +473,8 @@ export function StudioPage() {
   const downloadResult = useMutation({
     mutationFn: () =>
       download(
-        `/assets/${currentJob.data!.result_asset!.id}/download`,
-        `altura-${currentJob.data!.id}.${format}`,
+        `/assets/${selectedJob!.result_asset!.id}/download`,
+        `altura-${selectedJob!.id}.${format}`,
       ),
   });
 
@@ -483,11 +498,13 @@ export function StudioPage() {
       : estimatedCost;
   const effectiveOutpaintingMargins = useMemo(
     () =>
-      assets[0] ? outpaintingMargins(assets[0], canvasMode, margins) : margins,
-    [assets, canvasMode, margins],
+      selectedAsset
+        ? outpaintingMargins(selectedAsset, canvasMode, margins)
+        : margins,
+    [canvasMode, margins, selectedAsset],
   );
   const dimensions = useMemo(() => {
-    const asset = assets[0];
+    const asset = selectedAsset;
     if (!asset) return null;
     if (tool === "upscaler") {
       const output = upscaleOutputDimensions(asset, primaryUpscaleConfig);
@@ -506,12 +523,12 @@ export function StudioPage() {
       before: `${asset.width} × ${asset.height} px`,
       after: "Según resultado",
     };
-  }, [assets, effectiveOutpaintingMargins, primaryUpscaleConfig, tool]);
+  }, [effectiveOutpaintingMargins, primaryUpscaleConfig, selectedAsset, tool]);
   const busy =
     upload.isPending ||
     process.isPending ||
     Boolean(
-      currentJob.data && !terminalStatuses.includes(currentJob.data.status),
+      selectedJob && !terminalStatuses.includes(selectedJob.status),
     ) ||
     viewerPreparing;
   const fullyBusy = busy || batchBusy;
@@ -531,6 +548,7 @@ export function StudioPage() {
     stagedFilesRef.current = {};
     setPreviewUrls({});
     setAssets([]);
+    setSelectedAssetId(null);
     setUpscaleConfigs({});
     setJobIds([]);
     window.history.replaceState(null, "", `/studio/${tool}`);
@@ -539,6 +557,56 @@ export function StudioPage() {
     process.reset();
     downloadResult.reset();
     queryClient.removeQueries({ queryKey: ["job"] });
+  };
+
+  const removeAsset = (assetId: string) => {
+    if (fullyBusy || downloadResult.isPending) return;
+    const removedIndex = assets.findIndex((asset) => asset.id === assetId);
+    if (removedIndex < 0) return;
+    if (assets.length === 1) {
+      reset();
+      return;
+    }
+
+    const removedPreview = previewUrlsRef.current[assetId];
+    if (removedPreview) URL.revokeObjectURL(removedPreview);
+    const nextPreviews = { ...previewUrlsRef.current };
+    delete nextPreviews[assetId];
+    previewUrlsRef.current = nextPreviews;
+    setPreviewUrls(nextPreviews);
+
+    delete stagedFilesRef.current[assetId];
+    setUpscaleConfigs((current) => {
+      const next = { ...current };
+      delete next[assetId];
+      return next;
+    });
+
+    const nextAssets = assets.filter((asset) => asset.id !== assetId);
+    const nextSelectedAssetId =
+      selectedAssetId === assetId
+        ? nextAssets[Math.min(removedIndex, nextAssets.length - 1)].id
+        : selectedAssetId;
+    setAssets(nextAssets);
+    setSelectedAssetId(nextSelectedAssetId);
+
+    const removedJobId = jobIds[removedIndex];
+    const nextJobIds = jobIds.filter((_, index) => index !== removedIndex);
+    setJobIds(nextJobIds);
+    if (removedJobId) {
+      queryClient.removeQueries({ queryKey: ["job", removedJobId] });
+      const nextSelectedIndex = Math.max(
+        0,
+        nextAssets.findIndex((asset) => asset.id === nextSelectedAssetId),
+      );
+      const nextJobId = nextJobIds[nextSelectedIndex] ?? nextJobIds[0];
+      window.history.replaceState(
+        null,
+        "",
+        nextJobId ? `/studio/${tool}?job=${nextJobId}` : `/studio/${tool}`,
+      );
+    }
+    downloadResult.reset();
   };
 
   const primaryAction = completed ? (
@@ -583,15 +651,15 @@ export function StudioPage() {
                 after={resultViewer.data}
                 transparentAfter={tool === "background-remover"}
               />
-            ) : assets.length ? (
+            ) : selectedAsset ? (
               <Paper
-                className={`processing-canvas ${previewUrls[assets[0].id] ? "has-preview" : ""} ${tool === "outpainting" ? "outpainting-processing-canvas" : ""}`}
+                className={`processing-canvas ${previewUrls[selectedAsset.id] ? "has-preview" : ""} ${tool === "outpainting" ? "outpainting-processing-canvas" : ""}`}
                 elevation={0}
               >
-                {previewUrls[assets[0].id] && tool === "outpainting" ? (
+                {previewUrls[selectedAsset.id] && tool === "outpainting" ? (
                   <OutpaintingCanvas
-                    asset={assets[0]}
-                    previewUrl={previewUrls[assets[0].id]}
+                    asset={selectedAsset}
+                    previewUrl={previewUrls[selectedAsset.id]}
                     mode={canvasMode}
                     margins={effectiveOutpaintingMargins}
                     onModeChange={setCanvasMode}
@@ -599,28 +667,28 @@ export function StudioPage() {
                   />
                 ) : (
                   <>
-                    {previewUrls[assets[0].id] && (
+                    {previewUrls[selectedAsset.id] && (
                       <Box
                         component="img"
                         className="source-preview"
-                        src={previewUrls[assets[0].id]}
-                        alt="Vista previa de la imagen cargada"
+                        src={previewUrls[selectedAsset.id]}
+                        alt="Vista previa de la imagen seleccionada"
                       />
                     )}
                     <Box className="file-stage">
                       <Box className="file-stage-icon">{toolIcon(tool)}</Box>
                       <Box className="file-stage-copy">
                         <Typography variant="caption" color="text.secondary">
-                          {stagedFilesRef.current[assets[0].id]
+                          {stagedFilesRef.current[selectedAsset.id]
                             ? "Previsualización local"
                             : "Imagen cargada"}
                         </Typography>
                         <Typography variant="h2">
-                          {assets[0].width} × {assets[0].height} píxeles
+                          {selectedAsset.width} × {selectedAsset.height} píxeles
                         </Typography>
                         <Typography color="text.secondary">
                           {assets.length > 1
-                            ? `Lote de ${assets.length} imágenes preparado`
+                            ? `Imagen ${assets.findIndex((asset) => asset.id === selectedAsset.id) + 1} de ${assets.length} seleccionada`
                             : "Configura el trabajo en el panel derecho."}
                         </Typography>
                       </Box>
@@ -645,23 +713,23 @@ export function StudioPage() {
                         ? "Preparando previsualización…"
                         : process.isPending
                           ? "Subiendo originales y creando el trabajo…"
-                          : currentJob.data?.status === "processing"
+                          : selectedJob?.status === "processing"
                             ? "Procesando con IA…"
                             : "Preparando el resultado completo…"}
                     </Typography>
                   </Box>
                 )}
-                {currentJob.data?.status === "failed" && (
-                  <Alert severity="error">{currentJob.data.error}</Alert>
+                {selectedJob?.status === "failed" && (
+                  <Alert severity="error">{selectedJob.error}</Alert>
                 )}
                 {(process.isError ||
-                  currentJob.isError ||
+                  selectedJobQuery?.isError ||
                   sourceViewer.isError ||
                   resultViewer.isError) && (
                   <Alert severity="error">
                     {errorMessage(
                       process.error ??
-                        currentJob.error ??
+                        selectedJobQuery?.error ??
                         sourceViewer.error ??
                         resultViewer.error,
                     )}
@@ -741,20 +809,6 @@ export function StudioPage() {
                   {errorMessage(downloadResult.error)}
                 </Alert>
               )}
-              {assets.length > 1 && tool !== "upscaler" && (
-                <Stack direction="row" sx={{ gap: 1, flexWrap: "wrap" }}>
-                  {assets.map((asset, index) => (
-                    <Chip
-                      key={asset.id}
-                      label={
-                        index === 0 ? "Vista principal" : `Imagen ${index + 1}`
-                      }
-                      size="small"
-                    />
-                  ))}
-                </Stack>
-              )}
-
               {tool === "upscaler" && (
                 <UpscalerSettings
                   scaleMode={scaleMode}
@@ -812,10 +866,14 @@ export function StudioPage() {
               tool={tool}
               assets={assets}
               previewUrls={previewUrls}
-              jobs={batchJobs}
+              jobs={jobQueries.map((query) => query.data)}
               completedCount={completedJobs}
+              selectedAssetId={selectedAsset?.id ?? null}
               upscaleConfigs={upscaleConfigs}
               sharedUpscaleConfig={sharedUpscaleConfig}
+              onSelect={setSelectedAssetId}
+              onRemove={removeAsset}
+              disableRemoval={fullyBusy || downloadResult.isPending}
               onUpscaleConfigChange={(assetId, config) =>
                 setUpscaleConfigs((current) => ({
                   ...current,
@@ -1178,19 +1236,27 @@ function QueuePanel({
   previewUrls,
   jobs,
   completedCount,
+  selectedAssetId,
   upscaleConfigs,
   sharedUpscaleConfig,
   onUpscaleConfigChange,
+  onSelect,
+  onRemove,
+  disableRemoval,
   onClear,
 }: {
   tool: Tool;
   assets: Asset[];
   previewUrls: Record<string, string>;
-  jobs: Job[];
+  jobs: Array<Job | undefined>;
   completedCount: number;
+  selectedAssetId: string | null;
   upscaleConfigs: Record<string, UpscaleConfig>;
   sharedUpscaleConfig: UpscaleConfig;
   onUpscaleConfigChange: (assetId: string, config: UpscaleConfig) => void;
+  onSelect: (assetId: string) => void;
+  onRemove: (assetId: string) => void;
+  disableRemoval: boolean;
   onClear: () => void;
 }) {
   return (
@@ -1219,35 +1285,63 @@ function QueuePanel({
             return (
               <Box
                 key={asset.id}
-                className={`queue-item ${configurableUpscale ? "configurable" : ""}`}
+                className={`queue-item ${configurableUpscale ? "configurable" : ""} ${asset.id === selectedAssetId ? "selected" : ""}`}
               >
-                <Box className="queue-item-head">
-                  <Box className="queue-thumbnail">
-                    {previewUrls[asset.id] ? (
-                      <Box component="img" src={previewUrls[asset.id]} alt="" />
-                    ) : (
-                      <AddPhotoAlternateOutlined />
-                    )}
+                <Box className="queue-item-row">
+                  <Box
+                    component="button"
+                    type="button"
+                    className="queue-item-head queue-item-select"
+                    aria-pressed={asset.id === selectedAssetId}
+                    aria-label={`Mostrar Imagen ${index + 1} en la vista previa`}
+                    onClick={() => onSelect(asset.id)}
+                  >
+                    <Box className="queue-thumbnail">
+                      {previewUrls[asset.id] ? (
+                        <Box
+                          component="img"
+                          src={previewUrls[asset.id]}
+                          alt=""
+                        />
+                      ) : (
+                        <AddPhotoAlternateOutlined />
+                      )}
+                    </Box>
+                    <Box className="queue-item-copy">
+                      <Typography variant="body2">Imagen {index + 1}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {asset.width} × {asset.height} px
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        className={`queue-status ${status}`}
+                      >
+                        {status === "ready"
+                          ? "Lista para procesar"
+                          : status === "completed"
+                            ? "Completado"
+                            : status === "failed"
+                              ? "Fallido"
+                              : "Procesando"}
+                      </Typography>
+                    </Box>
+                    {index < completedCount && <CheckRounded />}
                   </Box>
-                  <Box className="queue-item-copy">
-                    <Typography variant="body2">Imagen {index + 1}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {asset.width} × {asset.height} px
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      className={`queue-status ${status}`}
-                    >
-                      {status === "ready"
-                        ? "Lista para procesar"
-                        : status === "completed"
-                          ? "Completado"
-                          : status === "failed"
-                            ? "Fallido"
-                            : "Procesando"}
-                    </Typography>
+                  <Box
+                    component="button"
+                    type="button"
+                    className="queue-item-remove"
+                    aria-label={`Quitar Imagen ${index + 1} de la cola`}
+                    title={
+                      disableRemoval
+                        ? "Espera a que termine el procesamiento"
+                        : `Quitar Imagen ${index + 1}`
+                    }
+                    disabled={disableRemoval}
+                    onClick={() => onRemove(asset.id)}
+                  >
+                    <CloseRounded aria-hidden="true" />
                   </Box>
-                  {index < completedCount && <CheckRounded />}
                 </Box>
                 {configurableUpscale && (
                   <Box className="queue-upscale-config">

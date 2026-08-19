@@ -59,7 +59,7 @@ export function LandingPage() {
             <a href="#caracteristicas">Características</a>
             <a href="#proceso">Cómo funciona</a>
             <Link className="reference-button reference-button-small" to={appPath}>
-              Probar ahora <ArrowRight aria-hidden="true" />
+              Acceder
             </Link>
           </nav>
         </div>
